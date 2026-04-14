@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Units API</title>
+    <style>
+        body { padding: 20px; font-family: Arial, sans-serif; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .result { margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 3px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Units API Test</h1>
+
+    <div class="test-section">
+        <h2>Test 1: Get Units List</h2>
+        <button onclick="testGetList()">Test Get List</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Add Unit</h2>
+        <button onclick="testAdd()">Test Add Unit</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Edit Unit</h2>
+        <button onclick="testEdit()">Test Edit Unit</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Delete Unit</h2>
+        <button onclick="testDelete()">Test Delete Unit</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = '../api/units.php';
+
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            const className = isError ? 'error' : 'success';
+            element.innerHTML = '<pre class="' + className + '">' + JSON.stringify(data, null, 2) + '</pre>';
+        }
+
+        async function testGetList() {
+            try {
+                const response = await fetch(API_BASE + '?action=list');
+                const data = await response.json();
+                showResult('result1', data);
+            } catch (error) {
+                showResult('result1', {error: error.message}, true);
+            }
+        }
+
+        async function testAdd() {
+            try {
+                const response = await fetch(API_BASE + '?action=add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        UnitCode: 'TEST',
+                        UnitName: 'Test Unit',
+                        UnitSymbol: 't',
+                        SortOrder: 999
+                    })
+                });
+                const data = await response.json();
+                showResult('result2', data);
+            } catch (error) {
+                showResult('result2', {error: error.message}, true);
+            }
+        }
+
+        async function testEdit() {
+            try {
+                const response = await fetch(API_BASE + '?action=edit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        UnitID: 1,
+                        UnitCode: 'KG',
+                        UnitName: 'Kilogram',
+                        UnitSymbol: 'kg',
+                        SortOrder: 1
+                    })
+                });
+                const data = await response.json();
+                showResult('result3', data);
+            } catch (error) {
+                showResult('result3', {error: error.message}, true);
+            }
+        }
+
+        async function testDelete() {
+            try {
+                const response = await fetch(API_BASE + '?action=delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: 999})  // 使用不存在的ID测试
+                });
+                const data = await response.json();
+                showResult('result4', data);
+            } catch (error) {
+                showResult('result4', {error: error.message}, true);
+            }
+        }
+
+        // 页面加载时自动测试列表
+        window.onload = function() {
+            testGetList();
+        };
+    </script>
+</body>
+</html>
