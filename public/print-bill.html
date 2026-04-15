@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账单打印 - 渔业收购管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #333;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .header .docket-id {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .bill-section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+
+        .bill-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 4px solid #5FB878;
+        }
+
+        .bill-info {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+
+        .bill-info p {
+            margin: 5px 0;
+        }
+
+        .bill-info strong {
+            display: inline-block;
+            width: 120px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        table th,
+        table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        table th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+
+        table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .total-row {
+            background: #f0f0f0 !important;
+            font-weight: bold;
+        }
+
+        .actions {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 30px;
+            margin: 0 10px;
+            background: #5FB878;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #4a9a63;
+        }
+
+        .btn-secondary {
+            background: #999;
+        }
+
+        .btn-secondary:hover {
+            background: #777;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            color: #999;
+        }
+
+        /* 打印样式 */
+        @media print {
+            body {
+                background: #fff;
+            }
+
+            .container {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            .actions {
+                display: none;
+            }
+
+            .bill-section {
+                page-break-inside: avoid;
+            }
+
+            table {
+                page-break-inside: auto;
+            }
+
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>渔业收购管理系统 - 账单</h1>
+            <div class="docket-id" id="header-docket-id">Docket ID: -</div>
+        </div>
+
+        <div id="bill-content">
+            <!-- 账单内容将在这里动态生成 -->
+        </div>
+
+        <div class="actions">
+            <button class="btn" onclick="window.print()">打印</button>
+            <button class="btn btn-secondary" onclick="window.close()">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        // 从 sessionStorage 读取账单数据
+        function loadBillData() {
+            var billsData = sessionStorage.getItem('printBillsData');
+            var docketId = sessionStorage.getItem('printBillsDocketId');
+
+            if (!billsData || !docketId) {
+                document.getElementById('bill-content').innerHTML =
+                    '<div class="no-data">没有找到账单数据，请重新从收货记录页面点击打印按钮。</div>';
+                return;
+            }
+
+            try {
+                var bills = JSON.parse(billsData);
+                renderBills(bills, docketId);
+            } catch (e) {
+                console.error('解析账单数据失败:', e);
+                document.getElementById('bill-content').innerHTML =
+                    '<div class="no-data">账单数据格式错误。</div>';
+            }
+        }
+
+        // 渲染账单
+        function renderBills(bills, docketId) {
+            document.getElementById('header-docket-id').textContent = 'Docket ID: ' + docketId;
+
+            var html = '';
+
+            // 采购账单
+            if (bills.purchase) {
+                var purchase = bills.purchase;
+                html += '<div class="bill-section">';
+                html += '<div class="bill-title">采购账单</div>';
+                html += '<div class="bill-info">';
+                html += '<p><strong>Purchase ID:</strong> ' + (purchase.PurchaseID || '-') + '</p>';
+                html += '<p><strong>日期:</strong> ' + formatDateTime(purchase.PurchaseDate) + '</p>';
+                html += '<p><strong>供应商:</strong> ' + (purchase.SupplierName || '-') + '</p>';
+                html += '</div>';
+
+                if (purchase.details && purchase.details.length > 0) {
+                    html += '<table>';
+                    html += '<thead>';
+                    html += '<tr>';
+                    html += '<th>鱼种类</th>';
+                    html += '<th>带桶重量</th>';
+                    html += '<th>净重</th>';
+                    html += '<th>单价</th>';
+                    html += '<th>总价</th>';
+                    html += '</tr>';
+                    html += '</thead>';
+                    html += '<tbody>';
+
+                    var totalGreenWeight = 0;
+                    var totalAmount = 0;
+
+                    purchase.details.forEach(function(item) {
+                        totalGreenWeight += item.GreenKG || 0;
+                        totalAmount += item.Total || 0;
+
+                        html += '<tr>';
+                        html += '<td>' + (item.Stock || '-') + '</td>';
+                        html += '<td>' + (item.LandedKG || 0).toFixed(2) + ' ' + (item.LandedUnitSymbol || 'kg') + '</td>';
+                        html += '<td>' + (item.GreenKG || 0).toFixed(2) + ' ' + (item.GreenUnitSymbol || 'kg') + '</td>';
+                        html += '<td>$' + (item.Price || 0).toFixed(2) + '</td>';
+                        html += '<td>$' + (item.Total || 0).toFixed(2) + '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '<tr class="total-row">';
+                    html += '<td colspan="2"><strong>合计</strong></td>';
+                    html += '<td><strong>' + totalGreenWeight.toFixed(2) + ' kg</strong></td>';
+                    html += '<td></td>';
+                    html += '<td><strong>$' + totalAmount.toFixed(2) + '</strong></td>';
+                    html += '</tr>';
+
+                    html += '</tbody>';
+                    html += '</table>';
+                } else {
+                    html += '<p style="padding: 20px; text-align: center; color: #999;">暂无明细数据</p>';
+                }
+
+                html += '</div>';
+            }
+
+            // 销售账单
+            if (bills.sales) {
+                var sales = bills.sales;
+                html += '<div class="bill-section">';
+                html += '<div class="bill-title">销售账单</div>';
+                html += '<div class="bill-info">';
+                html += '<p><strong>Sales ID:</strong> ' + (sales.SalesID || '-') + '</p>';
+                html += '<p><strong>日期:</strong> ' + formatDateTime(sales.SaleDate) + '</p>';
+                html += '</div>';
+
+                if (sales.details && sales.details.length > 0) {
+                    html += '<table>';
+                    html += '<thead>';
+                    html += '<tr>';
+                    html += '<th>鱼种类</th>';
+                    html += '<th>箱数</th>';
+                    html += '<th>总重</th>';
+                    html += '<th>净重</th>';
+                    html += '<th>单价</th>';
+                    html += '<th>金额</th>';
+                    html += '</tr>';
+                    html += '</thead>';
+                    html += '<tbody>';
+
+                    var totalNWeight = 0;
+                    var totalSalesAmount = 0;
+
+                    sales.details.forEach(function(item) {
+                        totalNWeight += item.N_Weight || 0;
+                        totalSalesAmount += item.Amount || 0;
+
+                        html += '<tr>';
+                        html += '<td>' + (item.Stock || '-') + '</td>';
+                        html += '<td>' + (item.BinQty || 0) + '</td>';
+                        html += '<td>' + (item.G_Weight || 0).toFixed(2) + ' ' + (item.WeightUnitSymbol || 'kg') + '</td>';
+                        html += '<td>' + (item.N_Weight || 0).toFixed(2) + ' ' + (item.WeightUnitSymbol || 'kg') + '</td>';
+                        html += '<td>$' + (item.Price || 0).toFixed(2) + '</td>';
+                        html += '<td>$' + (item.Amount || 0).toFixed(2) + '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '<tr class="total-row">';
+                    html += '<td colspan="3"><strong>合计</strong></td>';
+                    html += '<td><strong>' + totalNWeight.toFixed(2) + ' kg</strong></td>';
+                    html += '<td></td>';
+                    html += '<td><strong>$' + totalSalesAmount.toFixed(2) + '</strong></td>';
+                    html += '</tr>';
+
+                    html += '</tbody>';
+                    html += '</table>';
+                } else {
+                    html += '<p style="padding: 20px; text-align: center; color: #999;">暂无明细数据</p>';
+                }
+
+                html += '</div>';
+            }
+
+            document.getElementById('bill-content').innerHTML = html;
+
+            // 清除 sessionStorage 中的数据（可选）
+            // sessionStorage.removeItem('printBillsData');
+            // sessionStorage.removeItem('printBillsDocketId');
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            var date = new Date(dateStr);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 页面加载时读取账单数据
+        window.onload = loadBillData;
+    </script>
+</body>
+</html>

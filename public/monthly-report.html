@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月底汇总报表 - 渔业收购管理系统</title>
+
+    <!-- 引入 layui 定制样式 -->
+    <link rel="stylesheet" href="css/layui-custom.css">
+</head>
+<body>
+
+<div class="layui-layout layui-layout-admin">
+    <!-- 顶部导航 -->
+    <div class="layui-header">
+        <div class="layui-logo">
+            <a href="index.html" style="color: #fff; text-decoration: none;">
+                <i class="layui-icon layui-icon-return"></i> 返回数据管理
+            </a>
+        </div>
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item">
+                <a href="purchase-landing.html">
+                    <i class="layui-icon layui-icon-add-circle"></i> 收货录入
+                </a>
+            </li>
+            <li class="layui-nav-item">
+                <a href="javascript:;">
+                    <cite>月度报表</cite>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="layui-body" style="padding: 15px;">
+        <!-- 筛选条件 -->
+        <fieldset class="layui-elem-field">
+            <legend>报表筛选</legend>
+            <div class="layui-field-box">
+                <form class="layui-form" lay-filter="reportForm">
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">月份 <span style="color: red;">*</span></label>
+                            <div class="layui-input-inline">
+                                <input type="text" name="month" id="report-month" required lay-verify="required" placeholder="请选择月份" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">供应商</label>
+                            <div class="layui-input-inline">
+                                <select name="supplierId" id="report-supplier">
+                                    <option value="">全部供应商</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <button type="button" class="layui-btn" id="generate-btn">生成报表</button>
+                            <button type="button" class="layui-btn layui-btn-normal" id="export-excel-btn" style="display: none;">导出Excel</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </fieldset>
+
+        <!-- 汇总信息 -->
+        <fieldset id="summary-card" class="layui-elem-field" style="display: none;">
+            <legend>汇总信息</legend>
+            <div class="layui-field-box">
+                <div class="layui-row">
+                    <div class="layui-col-md4">
+                        <div style="padding: 15px; background: #f0f9ff; border-radius: 4px; text-align: center;">
+                            <div style="color: #64748b; margin-bottom: 5px;">月份</div>
+                            <div id="summary-month" style="font-size: 18px; color: #0ea5e9; font-weight: bold;">-</div>
+                        </div>
+                    </div>
+                    <div class="layui-col-md4">
+                        <div style="padding: 15px; background: #fefce8; border-radius: 4px; text-align: center;">
+                            <div style="color: #64748b; margin-bottom: 5px;">总净重</div>
+                            <div id="summary-weight" style="font-size: 18px; color: #f59e0b; font-weight: bold;">0.00 KG</div>
+                        </div>
+                    </div>
+                    <div class="layui-col-md4">
+                        <div style="padding: 15px; background: #fef2f2; border-radius: 4px; text-align: center;">
+                            <div style="color: #64748b; margin-bottom: 5px;">总金额</div>
+                            <div id="summary-amount" style="font-size: 18px; color: #dc2626; font-weight: bold;">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- 详细数据 -->
+        <fieldset id="detail-card" class="layui-elem-field" style="display: none;">
+            <legend>详细数据</legend>
+            <div class="layui-field-box">
+                <table id="report-table" lay-filter="report-table"></table>
+            </div>
+        </fieldset>
+
+        <!-- 上报说明 -->
+        <fieldset class="layui-elem-field" style="margin-top: 20px;">
+            <legend>上报说明</legend>
+            <div class="layui-field-box">
+                <div style="padding: 15px; background: #f9fafb; border-left: 4px solid #3b82f6;">
+                    <p style="margin-bottom: 10px;"><strong>官方统计系统上报格式：</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li>每月底汇总每个供应商提供的所有鱼产品数据</li>
+                        <li>按鱼种类统计：总净重（Green Weight）</li>
+                        <li>上报数据需包含：供应商名称、鱼种类学名、总净重</li>
+                        <li>导出的Excel文件可直接用于上报官方统计系统</li>
+                    </ul>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<!-- 引入 layui CSS -->
+<link href="https://unpkg.com/layui@2.8.0/dist/css/layui.css" rel="stylesheet">
+<!-- 引入 layui JS -->
+<script src="https://unpkg.com/layui@2.8.0/dist/layui.js"></script>
+
+<!-- 引入 SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- 引入页面逻辑 -->
+<script src="js/monthly-report.js?v=20250207-flat"></script>
+
+</body>
+</html>

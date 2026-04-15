@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landing Record Print - Fishery Data Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #000;
+            background: #f5f5f5;
+        }
+
+        .actions {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 30px;
+            margin: 0 10px;
+            background: #1F4E78;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #163a5c;
+        }
+
+        .btn-secondary {
+            background: #999;
+        }
+
+        .btn-secondary:hover {
+            background: #777;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            color: #999;
+        }
+
+        /* 打印样式 */
+        @media print {
+            body {
+                background: #fff;
+            }
+
+            .actions {
+                display: none;
+            }
+
+            /* 确保内容不被切断 */
+            .invoice-content {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="actions">
+        <button class="btn" onclick="window.print()">Print</button>
+        <button class="btn btn-secondary" onclick="window.close()">Close</button>
+    </div>
+
+    <div id="invoice-container">
+        <!-- 发票内容将在这里动态生成 -->
+    </div>
+
+    <script>
+        // 从 sessionStorage 读取数据
+        function loadInvoiceData() {
+            var dataStr = sessionStorage.getItem('printLandingData');
+
+            if (!dataStr) {
+                document.getElementById('invoice-container').innerHTML =
+                    '<div class="no-data">No landing data found. Please go back and click the Print Page button again.</div>';
+                return;
+            }
+
+            try {
+                var data = JSON.parse(dataStr);
+                renderInvoice(data.landing, data.details);
+            } catch (e) {
+                console.error('Failed to parse landing data:', e);
+                document.getElementById('invoice-container').innerHTML =
+                    '<div class="no-data">Failed to parse data.</div>';
+            }
+        }
+
+        // 渲染发票
+        function renderInvoice(landing, details) {
+            var html = createLandingInvoiceHtml(landing, details, 1);
+            document.getElementById('invoice-container').innerHTML = html;
+        }
+
+        // 创建到货记录HTML模板（与 app.js 中的 createLandingInvoiceHtml 相同）
+        function createLandingInvoiceHtml(landing, details, invoiceNo) {
+            var totalWeight = 0;
+            var detailsRows = '';
+
+            details.forEach(function(detail){
+                var weight = detail['L-Weight'] || 0;
+                var binQty = detail.BinQty || 0;
+                totalWeight += weight;
+
+                // 当 weight 为 0 或未定义时，显示为空白；否则显示两位小数
+                var weightDisplay = (weight > 0) ? weight.toFixed(2) : '';
+
+                detailsRows += '<tr>' +
+                    '<td style="border: 1px solid #999; padding: 10px 8px;">' + (detail.Stock || '') + '</td>' +
+                    '<td style="border: 1px solid #999; padding: 10px 8px;">' + (detail.Area || '') + '</td>' +
+                    '<td style="border: 1px solid #999; padding: 10px 8px;">' + (detail.State || '') + '</td>' +
+                    '<td style="border: 1px solid #999; padding: 10px 8px; text-align: center;">' + binQty + '</td>' +
+                    '<td style="border: 1px solid #999; padding: 10px 8px; text-align: center;">' + weightDisplay + '</td>' +
+                    '</tr>';
+            });
+
+            var landingDate = landing.LandingDate ? landing.LandingDate.substring(0, 10) : '';
+
+            var html = '<div class="invoice-content" style="page-break-after: always; padding: 20px; font-family: Arial, sans-serif; font-size: 12px; color: #000; background: white;">' +
+
+                // 顶部公司信息区域
+                '<div style="margin-bottom: 15px;">' +
+                '<div style="display: flex;">' +
+                // 左侧公司信息
+                '<div style="flex: 1; padding-right: 15px;">' +
+                '<div style="font-size: 28px; font-weight: bold; color: #1F4E78; margin-bottom: 10px;">SEAFOOD DIRECT LTD</div>' +
+                '<div style="font-size: 11px; line-height: 1.6;">' +
+                '<div>698A Tay Street, Invercargill, 9810; 404 Yarrow Street, Invercargill 9810</div>' +
+                '<div>Phone: 021 328-808; Email: bruce@ascofoodgroup.com; LFR No: 9900844</div>' +
+                '</div>' +
+                '</div>' +
+                // 右侧Docket模块
+                '<div style="display: flex; flex-direction: column;">' +
+                '<div style="background-color: #1F4E78; color: white; padding: 8px 15px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1F4E78;">Docket</div>' +
+                '<div style="background-color: #FFFF00; color: #FF0000; padding: 8px 15px; text-align: center; font-weight: bold; font-size: 16px; border: 1px solid #1F4E78; border-top: none;">' + (landing.LandingID || '') + '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+
+                // 标题区块
+                '<div style="background-color: #1F4E78; color: white; padding: 12px; text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 15px;">' +
+                'FISH LANDING DOCKET' +
+                '</div>' +
+
+                // 基础信息栏（三行）
+                '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">' +
+                '<tr>' +
+                '<td style="background-color: #1F4E78; color: white; padding: 8px 12px; font-weight: bold; width: 15%; border: 1px solid #1F4E78;">Supplier Name:</td>' +
+                '<td style="padding: 8px 12px; border: 1px solid #1F4E78; background-color: white;">' + (landing.SupplierName || '') + '</td>' +
+                '<td style="background-color: #1F4E78; color: white; padding: 8px 12px; font-weight: bold; width: 15%; border: 1px solid #1F4E78;">Client No:</td>' +
+                '<td style="padding: 8px 12px; border: 1px solid #1F4E78; background-color: white;">' + (landing.QRN || '') + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                '<td style="background-color: #1F4E78; color: white; padding: 8px 12px; font-weight: bold; border: 1px solid #1F4E78;">Boat Name:</td>' +
+                '<td style="padding: 8px 12px; border: 1px solid #1F4E78; background-color: white;">' + (landing.BoatName || '') + '</td>' +
+                '<td style="background-color: #1F4E78; color: white; padding: 8px 12px; font-weight: bold; border: 1px solid #1F4E78;">Boat No:</td>' +
+                '<td style="padding: 8px 12px; border: 1px solid #1F4E78; background-color: white;">' + (landing.BoatNo || '') + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                '<td style="background-color: #1F4E78; color: white; padding: 8px 12px; font-weight: bold; border: 1px solid #1F4E78;">Date Landed:</td>' +
+                '<td style="padding: 8px 12px; border: 1px solid #1F4E78; background-color: white;">' + landingDate + '</td>' +
+                '<td style="background-color: #1F4E78; color: white; padding: 8px 12px; font-weight: bold; border: 1px solid #1F4E78;">Port:</td>' +
+                '<td style="padding: 8px 12px; border: 1px solid #1F4E78; background-color: white;">' + (landing.Port || '') + '</td>' +
+                '</tr>' +
+                '</table>' +
+
+                // 鱼类信息表格
+                '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">' +
+                '<thead>' +
+                '<tr style="background-color: #E0E0E0;">' +
+                '<th style="border: 1px solid #999; padding: 10px 8px; text-align: left; font-weight: bold;">Fish Species</th>' +
+                '<th style="border: 1px solid #999; padding: 10px 8px; text-align: left; font-weight: bold;">Area</th>' +
+                '<th style="border: 1px solid #999; padding: 10px 8px; text-align: left; font-weight: bold;">State</th>' +
+                '<th style="border: 1px solid #999; padding: 10px 8px; text-align: center; font-weight: bold;">Bin</th>' +
+                '<th style="border: 1px solid #999; padding: 10px 8px; text-align: center; font-weight: bold;">Landed Weight</th>' +
+                '</tr>' +
+                '</thead>' +
+                '<tbody>' + detailsRows + '</tbody>' +
+                '</table>' +
+
+                '</div>';
+
+            return html;
+        }
+
+        // 页面加载时读取数据
+        window.onload = loadInvoiceData;
+    </script>
+</body>
+</html>
