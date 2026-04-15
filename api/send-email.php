@@ -19,14 +19,32 @@ define('APP_ACCESS', true);
 require_once '../config/db.php';
 
 /**
- * 获取环境变量值
+ * 获取环境变量值（从 .env 文件读取）
  */
 function getEnvVar($key, $default = '') {
-    $value = getenv($key);
-    if ($value === false) {
-        $value = $_ENV[$key] ?? $_SERVER[$key] ?? $default;
+    static $envData = null;
+
+    // 只加载一次 .env 文件
+    if ($envData === null) {
+        $envData = [];
+        $envFile = dirname(__DIR__) . '/.env';
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                // 跳过注释行
+                if (strpos(trim($line), '#') === 0) {
+                    continue;
+                }
+                // 解析 KEY=VALUE 格式
+                if (strpos($line, '=') !== false) {
+                    list($name, $value) = explode('=', $line, 2);
+                    $envData[trim($name)] = trim($value);
+                }
+            }
+        }
     }
-    return $value;
+
+    return $envData[$key] ?? $default;
 }
 
 // 引入 PHPMailer
