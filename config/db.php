@@ -11,7 +11,8 @@ if (!defined('APP_ACCESS')) {
     die('Direct access not permitted');
 }
 
-// 加载环境变量文件
+// 加载环境变量文件到本地数组
+$envData = [];
 $envFile = dirname(__DIR__) . '/.env';
 if (file_exists($envFile)) {
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -25,10 +26,7 @@ if (file_exists($envFile)) {
             list($name, $value) = explode('=', $line, 2);
             $name = trim($name);
             $value = trim($value);
-            // 设置环境变量
-            putenv("$name=$value");
-            $_ENV[$name] = $value;
-            $_SERVER[$name] = $value;
+            $envData[$name] = $value;
         }
     }
 }
@@ -50,11 +48,8 @@ class Database {
      * 获取配置值
      */
     private static function getConfig($key, $default = '') {
-        $value = getenv($key);
-        if ($value === false) {
-            $value = $_ENV[$key] ?? $_SERVER[$key] ?? $default;
-        }
-        return $value;
+        global $envData;
+        return $envData[$key] ?? $default;
     }
 
     /**
