@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# project_code
-=======
 # 渔业数据管理系统 (Fishery Data Management System)
 
 轻量级渔业业务数据管理系统，用于管理渔船到货记录、采购订单、销售订单及基础数据。
@@ -29,7 +26,7 @@
 
 ### 系统特性
 - **双语言支持**：中文/English 实时切换
-- **移动端适配**：响应式设计，支持手机/平板操作
+- **移动端适配**：响应式设计，支持手机/平板操作，底部导航栏
 - **数据导出**：支持 Excel、PDF 导出
 - **邮件通知**：支持发送邮件给供应商
 - **网络打印**：支持 ESC/POS 网络打印机
@@ -44,7 +41,7 @@
 
 ## 技术栈
 
-**前端：** HTML5 + CSS3 + Vanilla JavaScript + Layui 2.8.0
+**前端：** HTML5 + CSS3 + Vanilla JavaScript + Tailwind CSS 3
 **后端：** PHP 8.2.28 (原生，无框架)
 **数据库：** MySQL (utf8mb4_unicode_ci)
 **服务器：** Nginx + PHP-FPM
@@ -83,7 +80,8 @@ find /www/wwwroot/table-editor -type f -exec chmod 644 {} \;
 
 ### 5. 访问测试
 
-- 地址：`http://your-domain.com/table-editor/public/`
+- **新版入口**：`http://your-domain.com/table-editor/public/`
+- **旧版入口**：`http://your-domain.com/table-editor/public/index-layui.html`
 - 测试账号：`admin` / `123456`
 
 **生产环境请务必修改默认密码！**
@@ -113,19 +111,23 @@ table-editor/
 ├── database/
 │   └── seafood_backup_20260409.sql  # 数据库备份（完整19表）
 ├── public/                       # Web 入口
-│   ├── index.html                # 主页面（到货/采购/销售记录）
-│   ├── data-management.html      # 基础数据管理
-│   ├── monthly-report.html       # 月度汇总报表
-│   ├── monthly-statistics.html   # 月度统计
-│   ├── purchase-landing.html     # 采购关联到货
-│   ├── print-landing.html        # 到货打印页面
-│   ├── print-bill.html           # 单据打印页面
+│   ├── index.html                # 主页面（新版 Tailwind）
+│   ├── index-layui.html          # 主页面（旧版 Layui）
+│   ├── data-management.html      # 基础数据管理（旧版）
+│   ├── monthly-report.html       # 月度汇总报表（旧版）
+│   ├── monthly-statistics.html   # 月度统计（旧版）
+│   ├── purchase-landing.html     # 采购关联到货（旧版）
+│   ├── print-landing.html        # 到货打印页面（旧版）
+│   ├── print-bill.html           # 单据打印页面（旧版）
 │   ├── css/
-│   │   └── style.css             # 样式文件
+│   │   └── style.css            # 样式文件
 │   └── js/
-│       ├── api.js                # API 调用封装
-│       ├── app.js                # 主页面逻辑
-│       └── i18n.js               # 国际化支持
+│       ├── api.js               # API 调用封装
+│       ├── app.js               # 旧版 Layui 逻辑
+│       └── i18n.js              # 旧版国际化支持
+├── docs/
+│   └── ARCHITECTURE.md          # 架构文档
+├── MIGRATION_STATUS.md           # 迁移进度报告
 └── README.md
 ```
 
@@ -198,27 +200,9 @@ $mail->Port     = 587;
 **Q: 生成采购单提示"已生成"？**
 → 每个到货记录只能生成一次，在采购记录页面查找
 
-**Q: 打印机无法连接？**
-→ 检查打印机 IP 是否可达，防火墙是否开放对应端口
+## 迁移说明
 
-## 日志位置
+项目已完成从 Layui 到 Tailwind CSS 的前端迁移，详见 [MIGRATION_STATUS.md](MIGRATION_STATUS.md)。
 
-```bash
-# PHP 错误日志
-tail -f /www/server/php/82/var/log/php-fpm.log
-
-# Nginx 错误日志
-tail -f /www/server/nginx/logs/error.log
-```
-
-## 技术支持
-
-- PHP 版本：≥ 8.2
-- MySQL 版本：≥ 5.7
-- 推荐开启 HTTPS
-- 定期备份数据库和文件
-
----
-
-**版本：** v3.0.0 | **更新：** 2026-04-09
->>>>>>> master
+- **新版**：使用 Tailwind CSS，支持移动端响应式和双语切换
+- **旧版**：保留 Layui 版本供对比参考
