@@ -102,81 +102,194 @@ function sendToPrinter($ip, $port, $data) {
  * @return string ESC/POS指令数据
  */
 function generateLandingPrintData($landing) {
-    // ESC/POS 初始化和格式化指令
-    $data = "\x1B\x40";                      // 初始化打印机
-    $data .= "\x1B\x61\x01";                 // 居中对齐
-    $data .= "\x1D\x21\x11";                 // 双倍宽高
-    $data .= "FISHERY LANDING RECORD\n";     // 标题
-    $data .= "\x1D\x21\x00";                 // 正常字体
-    $data .= "\x1B\x61\x00";                 // 左对齐
+    $data = "\x1B\x40";
+    $data .= "\x1B\x61\x01";
+    $data .= "\x1D\x21\x11";
+    $data .= "LANDING RECORD\n";
+    $data .= "\x1D\x21\x00";
+    $data .= "\x1B\x61\x00";
     $data .= "================================\n";
 
-    // 日期
-    $data .= "\x1B\x45\x01";                 // 加粗开启
-    $data .= "Date: ";
-    $data .= "\x1B\x45\x00";                 // 加粗关闭
-    $data .= $landing['date'] . "\n\n";
+    $data .= "\x1B\x45\x01";
+    $data .= "Landing ID: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($landing['LandingID'] ?? '-') . "\n";
 
-    // 供应商
+    $data .= "\x1B\x45\x01";
+    $data .= "Date: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($landing['LandingDate'] ?? '-') . "\n";
+
     $data .= "\x1B\x45\x01";
     $data .= "Supplier: ";
     $data .= "\x1B\x45\x00";
-    $data .= $landing['supplier'] . "\n";
+    $data .= ($landing['SupplierName'] ?? '-') . "\n";
 
-    // 船只
     $data .= "\x1B\x45\x01";
     $data .= "Boat: ";
     $data .= "\x1B\x45\x00";
-    $data .= $landing['boat'] . "\n";
+    $data .= ($landing['BoatName'] ?? '-') . " (" . ($landing['BoatNo'] ?? '-') . ")\n";
 
-    // 地点
     $data .= "\x1B\x45\x01";
-    $data .= "Location: ";
+    $data .= "Port: ";
     $data .= "\x1B\x45\x00";
-    $data .= $landing['location'] . "\n\n";
+    $data .= ($landing['Port'] ?? '-') . "\n\n";
 
     $data .= "--------------------------------\n";
-    $data .= "\x1B\x45\x01";
-    $data .= "FISH TYPE      QTY    PRICE    TOTAL\n";
-    $data .= "\x1B\x45\x00";
-    $data .= "--------------------------------\n";
 
-    // 鱼种明细
     if (!empty($landing['details']) && is_array($landing['details'])) {
         foreach ($landing['details'] as $detail) {
-            $fishType = $detail['fish_type'] ?? '';
-            $quantity = $detail['quantity'] ?? 0;
-            $unitPrice = $detail['unit_price'] ?? 0;
-            $total = $quantity * $unitPrice;
+            $stock = $detail['Stock'] ?? '-';
+            $state = $detail['State'] ?? '-';
+            $binQty = $detail['BinQty'] ?? 0;
+            $lWeight = $detail['L-Weight'] ?? 0;
+            $ice = $detail['ICE'] ?? 'NO';
+            $price = $detail['Price'] ?? 0;
+            $total = $lWeight * $price;
 
-            // 格式化输出
-            $data .= sprintf("%-14s %5s %8.2f %8.2f\n",
-                mb_substr($fishType, 0, 14, 'UTF-8'),
-                number_format($quantity),
-                $unitPrice,
-                $total
-            );
+            $data .= "\x1B\x45\x01";
+            $data .= mb_substr($stock, 0, 16, 'UTF-8') . "\n";
+            $data .= "\x1B\x45\x00";
+            $data .= sprintf("  State:%-6s Bins:%-3d ICE:%-3s\n", $state, $binQty, $ice);
+            $data .= sprintf("  Weight:%6.2fkg Price:$%-7.2f\n", $lWeight, $price);
+            $data .= sprintf("  Total:$%-7.2f\n", $total);
+            $data .= "--------------------------------\n";
         }
     }
 
-    $data .= "--------------------------------\n";
-
-    // 总计
     $totalAmount = 0;
     if (!empty($landing['details']) && is_array($landing['details'])) {
         foreach ($landing['details'] as $detail) {
-            $totalAmount += ($detail['quantity'] ?? 0) * ($detail['unit_price'] ?? 0);
+            $totalAmount += ($detail['L-Weight'] ?? 0) * ($detail['Price'] ?? 0);
         }
     }
 
-    $data .= "\x1D\x21\x11";                 // 双倍宽高
-    $data .= sprintf("TOTAL: \$%.2f\n", $totalAmount);
-    $data .= "\x1D\x21\x00";                 // 正常字体
+    $data .= "\n";
+    $data .= "\x1D\x21\x11";
+    $data .= sprintf("TOTAL:    $%18.2f\n", $totalAmount);
+    $data .= "\x1D\x21\x00";
+    $data .= "\n\n\n";
+    $data .= "\x1D\x56\x00";
 
-    $data .= "\n\n";
+    return $data;
+}
 
-    // 切纸指令
-    $data .= "\x1D\x56\x00";                 // 切纸并退纸
+/**
+ * 生成ESC/POS打印指令（采购单）
+ */
+function generatePurchasePrintData($purchase) {
+    $data = "\x1B\x40";
+    $data .= "\x1B\x61\x01";
+    $data .= "\x1D\x21\x11";
+    $data .= "PURCHASE ORDER\n";
+    $data .= "\x1D\x21\x00";
+    $data .= "\x1B\x61\x00";
+    $data .= "================================\n";
+
+    $data .= "\x1B\x45\x01";
+    $data .= "Purchase ID: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($purchase['PurchaseID'] ?? '-') . "\n";
+
+    $data .= "\x1B\x45\x01";
+    $data .= "Date: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($purchase['PurchaseDate'] ?? '-') . "\n";
+
+    $data .= "\x1B\x45\x01";
+    $data .= "Supplier: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($purchase['SupplierName'] ?? '-') . "\n\n";
+
+    $data .= "--------------------------------\n";
+
+    if (!empty($purchase['details']) && is_array($purchase['details'])) {
+        foreach ($purchase['details'] as $detail) {
+            $stock = $detail['Stock'] ?? '-';
+            $state = $detail['State'] ?? '-';
+            $ice = $detail['ICE'] ?? 'NO';
+            $greenKG = $detail['GreenKG'] ?? 0;
+            $landedKG = $detail['LandedKG'] ?? 0;
+            $price = $detail['Price'] ?? 0;
+            $total = $detail['Total'] ?? 0;
+
+            $data .= "\x1B\x45\x01";
+            $data .= mb_substr($stock, 0, 16, 'UTF-8') . "\n";
+            $data .= "\x1B\x45\x00";
+            $data .= sprintf("  State:%-6s ICE:%-3s\n", $state, $ice);
+            $data .= sprintf("  Green:%6.2fkg Landed:%6.2fkg\n", $greenKG, $landedKG);
+            $data .= sprintf("  Price:$%-7.2f Total:$%-7.2f\n", $price, $total);
+            $data .= "--------------------------------\n";
+        }
+    }
+
+    $data .= "\n";
+    $data .= sprintf("Subtotal: $%18.2f\n", $purchase['Subtotal'] ?? 0);
+    $data .= sprintf("GST:      $%18.2f\n", $purchase['GST'] ?? 0);
+    $data .= "\x1D\x21\x11";
+    $data .= sprintf("TOTAL:    $%18.2f\n", $purchase['Total'] ?? 0);
+    $data .= "\x1D\x21\x00";
+    $data .= "\n\n\n";
+    $data .= "\x1D\x56\x00";
+
+    return $data;
+}
+
+/**
+ * 生成ESC/POS打印指令（销售单）
+ */
+function generateSalesPrintData($sales) {
+    $data = "\x1B\x40";
+    $data .= "\x1B\x61\x01";
+    $data .= "\x1D\x21\x11";
+    $data .= "SALES ORDER\n";
+    $data .= "\x1D\x21\x00";
+    $data .= "\x1B\x61\x00";
+    $data .= "================================\n";
+
+    $data .= "\x1B\x45\x01";
+    $data .= "Sales ID: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($sales['SalesID'] ?? '-') . "\n";
+
+    $data .= "\x1B\x45\x01";
+    $data .= "Date: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($sales['SaleDate'] ?? '-') . "\n";
+
+    $data .= "\x1B\x45\x01";
+    $data .= "Customer: ";
+    $data .= "\x1B\x45\x00";
+    $data .= ($sales['CustomerName'] ?? '-') . "\n\n";
+
+    $data .= "--------------------------------\n";
+
+    if (!empty($sales['details']) && is_array($sales['details'])) {
+        foreach ($sales['details'] as $detail) {
+            $stock = $detail['Stock'] ?? '-';
+            $binQty = $detail['BinQty'] ?? 0;
+            $gWeight = $detail['G-Weight'] ?? 0;
+            $nWeight = $detail['N-Weight'] ?? 0;
+            $price = $detail['Price'] ?? 0;
+            $amount = $detail['Amount'] ?? 0;
+
+            $data .= "\x1B\x45\x01";
+            $data .= mb_substr($stock, 0, 16, 'UTF-8') . "\n";
+            $data .= "\x1B\x45\x00";
+            $data .= sprintf("  Bins:%-4d G.W:%6.2fkg N.W:%6.2fkg\n", $binQty, $gWeight, $nWeight);
+            $data .= sprintf("  Price:$%-7.2f Amount:$%-7.2f\n", $price, $amount);
+            $data .= "--------------------------------\n";
+        }
+    }
+
+    $data .= "\n";
+    $data .= sprintf("Subtotal: $%18.2f\n", $sales['Subtotal'] ?? 0);
+    $data .= sprintf("GST:      $%18.2f\n", $sales['GST'] ?? 0);
+    $data .= "\x1D\x21\x11";
+    $data .= sprintf("TOTAL:    $%18.2f\n", $sales['Total'] ?? 0);
+    $data .= "\x1D\x21\x00";
+    $data .= "\n\n\n";
+    $data .= "\x1D\x56\x00";
 
     return $data;
 }
@@ -553,10 +666,13 @@ try {
         }
 
         // 获取到货记录
-        $stmt = $db->prepare("SELECT lr.*,
-            (SELECT JSON_ARRAYAGG(JSON_OBJECT('fish_type', fish_type, 'quantity', quantity, 'unit_price', unit_price))
-             FROM landing_records_detail WHERE landing_id = lr.id) as details
-            FROM landing_records lr WHERE lr.id = :id");
+        $stmt = $db->prepare("SELECT l.LandingID, l.LandingDate, l.SupplierID, l.PortID, l.BoatID,
+                       s.SupplierName, p.Port, b.BoatName, b.BoatNo
+                FROM tblLanding l
+                LEFT JOIN tblSuppliers s ON l.SupplierID = s.SupplierID
+                LEFT JOIN tblPort p ON l.PortID = p.PortID
+                LEFT JOIN tblBoat b ON l.BoatID = b.BoatID
+                WHERE l.LandingID = :id AND l.is_del = 0");
         $stmt->bindParam(':id', $input['landing_id']);
         $stmt->execute();
         $landing = $stmt->fetch();
@@ -567,10 +683,15 @@ try {
             exit;
         }
 
-        // 解析details JSON
-        if (!empty($landing['details'])) {
-            $landing['details'] = json_decode($landing['details'], true);
-        }
+        // 获取明细
+        $detailStmt = $db->prepare("SELECT ld.*, st.Stock, st.State, st.Area
+            FROM tblLandingDetail ld
+            LEFT JOIN tblStock st ON ld.StockID = st.StockID
+            WHERE ld.LandingID = :id AND ld.is_del = 0
+            ORDER BY ld.ID");
+        $detailStmt->bindParam(':id', $input['landing_id']);
+        $detailStmt->execute();
+        $landing['details'] = $detailStmt->fetchAll();
 
         // 生成打印数据
         $printData = generateLandingPrintData($landing);
@@ -582,6 +703,160 @@ try {
             echo json_encode([
                 'success' => true,
                 'message' => "已通过打印机 [{$printer['printer_name']}] 打印",
+                'printer' => $printer['printer_name']
+            ]);
+        } else {
+            echo json_encode($result);
+        }
+    }
+
+    /**
+     * 网络打印采购单
+     */
+    elseif ($method === 'POST' && $action === 'printPurchase') {
+        if (empty($input['purchase_id'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => '采购单ID不能为空']);
+            exit;
+        }
+
+        $printerId = isset($input['printer_id']) ? intval($input['printer_id']) : 0;
+
+        if (!$printerId) {
+            $stmt = $db->prepare("SELECT * FROM tblPrinters WHERE is_default = 1 AND status = 1 LIMIT 1");
+            $stmt->execute();
+            $printer = $stmt->fetch();
+
+            if (!$printer) {
+                $stmt = $db->prepare("SELECT * FROM tblPrinters WHERE status = 1 ORDER BY id LIMIT 1");
+                $stmt->execute();
+                $printer = $stmt->fetch();
+            }
+
+            if (!$printer) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => '没有可用的打印机，请先在数据管理中配置打印机']);
+                exit;
+            }
+        } else {
+            $stmt = $db->prepare("SELECT * FROM tblPrinters WHERE id = :id AND status = 1");
+            $stmt->bindParam(':id', $printerId);
+            $stmt->execute();
+            $printer = $stmt->fetch();
+
+            if (!$printer) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => '指定的打印机不存在或已禁用']);
+                exit;
+            }
+        }
+
+        $stmt = $db->prepare("SELECT p.*, s.SupplierName
+            FROM tblPurchase p
+            LEFT JOIN tblSuppliers s ON p.SupplierID = s.SupplierID
+            WHERE p.PurchaseID = :id AND p.is_del = 0");
+        $stmt->bindParam(':id', $input['purchase_id']);
+        $stmt->execute();
+        $purchase = $stmt->fetch();
+
+        if (!$purchase) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => '采购单不存在']);
+            exit;
+        }
+
+        $detailStmt = $db->prepare("SELECT pd.*, st.Stock
+            FROM tblPurchaseDetail pd
+            LEFT JOIN tblStock st ON pd.StockID = st.StockID
+            WHERE pd.PurchaseID = :id AND pd.is_del = 0");
+        $detailStmt->bindParam(':id', $input['purchase_id']);
+        $detailStmt->execute();
+        $purchase['details'] = $detailStmt->fetchAll();
+
+        $printData = generatePurchasePrintData($purchase);
+        $result = sendToPrinter($printer['printer_ip'], $printer['printer_port'], $printData);
+
+        if ($result['success']) {
+            echo json_encode([
+                'success' => true,
+                'message' => "已通过打印机 [{$printer['printer_name']}] 打印采购单",
+                'printer' => $printer['printer_name']
+            ]);
+        } else {
+            echo json_encode($result);
+        }
+    }
+
+    /**
+     * 网络打印销售单
+     */
+    elseif ($method === 'POST' && $action === 'printSales') {
+        if (empty($input['sales_id'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => '销售单ID不能为空']);
+            exit;
+        }
+
+        $printerId = isset($input['printer_id']) ? intval($input['printer_id']) : 0;
+
+        if (!$printerId) {
+            $stmt = $db->prepare("SELECT * FROM tblPrinters WHERE is_default = 1 AND status = 1 LIMIT 1");
+            $stmt->execute();
+            $printer = $stmt->fetch();
+
+            if (!$printer) {
+                $stmt = $db->prepare("SELECT * FROM tblPrinters WHERE status = 1 ORDER BY id LIMIT 1");
+                $stmt->execute();
+                $printer = $stmt->fetch();
+            }
+
+            if (!$printer) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => '没有可用的打印机，请先在数据管理中配置打印机']);
+                exit;
+            }
+        } else {
+            $stmt = $db->prepare("SELECT * FROM tblPrinters WHERE id = :id AND status = 1");
+            $stmt->bindParam(':id', $printerId);
+            $stmt->execute();
+            $printer = $stmt->fetch();
+
+            if (!$printer) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => '指定的打印机不存在或已禁用']);
+                exit;
+            }
+        }
+
+        $stmt = $db->prepare("SELECT s.*, c.CustomerName
+            FROM tblSales s
+            LEFT JOIN tblCustomers c ON s.CustomerID = c.CustomerID
+            WHERE s.SalesID = :id AND s.is_del = 0");
+        $stmt->bindParam(':id', $input['sales_id']);
+        $stmt->execute();
+        $sales = $stmt->fetch();
+
+        if (!$sales) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => '销售单不存在']);
+            exit;
+        }
+
+        $detailStmt = $db->prepare("SELECT sd.*, st.Stock
+            FROM tblSalesDetail sd
+            LEFT JOIN tblStock st ON sd.StockID = st.StockID
+            WHERE sd.SalesID = :id AND sd.is_del = 0");
+        $detailStmt->bindParam(':id', $input['sales_id']);
+        $detailStmt->execute();
+        $sales['details'] = $detailStmt->fetchAll();
+
+        $printData = generateSalesPrintData($sales);
+        $result = sendToPrinter($printer['printer_ip'], $printer['printer_port'], $printData);
+
+        if ($result['success']) {
+            echo json_encode([
+                'success' => true,
+                'message' => "已通过打印机 [{$printer['printer_name']}] 打印销售单",
                 'printer' => $printer['printer_name']
             ]);
         } else {

@@ -649,6 +649,7 @@
             'toast.exportFailed': 'Failed to export',
             'toast.printing': 'Opening print dialog...',
             'toast.printFailed': 'Print failed',
+            'toast.printSuccess': 'Print successful',
             'toast.netPrinting': 'Network printing...',
             'toast.purchaseGenerated': 'Purchase order generated successfully',
             'toast.purchaseFailed': 'Failed to generate purchase',
@@ -904,6 +905,7 @@
             'toast.exportFailed': '导出失败',
             'toast.printing': '正在打开打印对话框...',
             'toast.printFailed': '打印失败',
+            'toast.printSuccess': '打印成功',
             'toast.netPrinting': '正在网络打印...',
             'toast.purchaseGenerated': '采购单生成成功',
             'toast.purchaseFailed': '生成采购单失败',
@@ -3039,11 +3041,78 @@
     }
 
     // Net print row
-    function netPrintRow(id) {
-        showToast(t('toast.netPrinting'), 'info');
+async function netPrintRow(id) {
+    showToast(t('toast.netPrinting'), 'info');
+    
+    try {
+        const response = await fetch(API_BASE + '/printer.php?action=printLanding', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ landing_id: id })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message || t('toast.printSuccess'), 'success');
+        } else {
+            showToast(result.message || t('toast.printFailed'), 'error');
+        }
+    } catch (error) {
+        console.error('Network print error:', error);
+        showToast(t('toast.printFailed') || 'Network print failed', 'error');
     }
+}
 
-    // Generate purchase
+// Generic network print function
+async function netPrintRecord(type, id) {
+    const endpoints = {
+        'landing': '/printer.php?action=printLanding',
+        'purchase': '/printer.php?action=printPurchase',
+        'sales': '/printer.php?action=printSales'
+    };
+    
+    const bodyKeys = {
+        'landing': 'landing_id',
+        'purchase': 'purchase_id',
+        'sales': 'sales_id'
+    };
+    
+    const endpoint = endpoints[type];
+    const bodyKey = bodyKeys[type];
+    
+    if (!endpoint) {
+        showToast('Invalid print type', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(API_BASE + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ [bodyKey]: id })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message || t('toast.printSuccess'), 'success');
+        } else {
+            showToast(result.message || t('toast.printFailed'), 'error');
+        }
+    } catch (error) {
+        console.error('Network print error:', error);
+        showToast(t('toast.printFailed') || 'Network print failed', 'error');
+    }
+}
+
+// Generate purchase
     async function generatePurchase(id) {
         try {
             const response = await fetch(API_BASE + '/landing-to-purchase.php?landingId=' + id, {
@@ -3221,7 +3290,7 @@
             'stock': { id: 'StockID', display: ['Stock', 'Description', 'State', 'Area', 'Price'] },
             'bin': { id: 'BinID', display: ['BinName', 'B-Weight'] },
             'price': { id: 'PriceID', display: ['SupplierName', 'Stock', 'UnitPrice', 'UpdateTime'] },
-            'printer': { id: 'PrinterID', display: ['PrinterName', 'PrinterIP', 'PrinterPort', 'IsDefault'] },
+            'printer': { id: 'id', display: ['printer_name', 'printer_ip', 'printer_port', 'printer_type', 'is_default', 'status', 'description'] },
             'units': { id: 'UnitID', display: ['UnitCode', 'UnitName', 'UnitSymbol', 'SortOrder', 'IsActive'] }
         };
         return columns[table] || { id: 'id', display: ['name'] };
@@ -3293,8 +3362,12 @@
             const cells = displayCols.map(col => {
                 let cellValue = record[col];
                 let displayValue;
-                if (col === 'IsDefault' || col === 'IsActive') {
-                    displayValue = cellValue == 1 ? '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">' + t('management.yes') + '</span>' : '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">' + t('management.no') + '</span>';
+                if (col === 'IsDefault' || col === 'IsActive' || col === 'is_default' || col === 'status') {
+                    if (col === 'status') {
+                        displayValue = cellValue == 1 ? '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">' + t('management.enabled') + '</span>' : '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">' + t('management.disabled') + '</span>';
+                    } else {
+                        displayValue = cellValue == 1 ? '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">' + t('management.yes') + '</span>' : '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">' + t('management.no') + '</span>';
+                    }
                 } else {
                     displayValue = cellValue ?? '-';
                 }
@@ -3956,7 +4029,10 @@
         currentRecordData = { PurchaseID: id, type: 'purchase' };
     }
     function printPurchaseRow(id) { window.open('/public/print-bill.html?id=' + id, '_blank'); }
-    function netPrintPurchaseRow(id) { showToast(t('toast.netPrinting'), 'info'); }
+    function netPrintPurchaseRow(id) { 
+        showToast(t('toast.netPrinting'), 'info');
+        netPrintRecord('purchase', id);
+    }
 
     // Open Purchase Edit Modal
     async function openPurchaseEditModal(id) {
@@ -4726,7 +4802,10 @@
         currentRecordData = { SalesID: id, type: 'sales' };
     }
     function printSalesRow(id) { window.open('/public/print-bill.html?salesId=' + id, '_blank'); }
-    function netPrintSalesRow(id) { showToast(t('toast.netPrinting'), 'info'); }
+    function netPrintSalesRow(id) { 
+        showToast(t('toast.netPrinting'), 'info');
+        netPrintRecord('sales', id);
+    }
 
     // Open Sales Edit Modal
     async function openSalesEditModal(id) {
