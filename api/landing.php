@@ -23,7 +23,15 @@ header('Content-Type: application/json; charset=utf-8');
 // 获取请求方法和路径
 $method = $_SERVER['REQUEST_METHOD'];
 
-// 启动Session
+// 启动Session并配置cookie持久化
+session_set_cookie_params([
+    'lifetime' => 86400 * 7,
+    'path' => '/',
+    'domain' => '',
+    'secure' => false,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 session_start();
 
 try {
@@ -440,12 +448,35 @@ function handlePut($conn) {
             ]);
         }
 
+        // 同步更新对应的 Purchase 记录
+        $purchaseUpdated = false;
+        $purchaseData = null;
+        try {
+            $purchaseData = updatePurchaseFromLanding($conn, $input['LandingID']);
+            $purchaseUpdated = true;
+        } catch (Exception $purchaseEx) {
+            // 如果更新 Purchase 失败，记录日志但不影响 Landing 的更新
+            error_log("同步更新 Purchase 失败: " . $purchaseEx->getMessage());
+            $purchaseUpdated = false;
+            $purchaseError = $purchaseEx->getMessage();
+        }
+
         $conn->commit();
 
-        echo json_encode([
+        $response = [
             'success' => true,
-            'message' => '更新成功'
-        ]);
+            'message' => '更新成功',
+            'LandingID' => $input['LandingID'],
+            'purchaseUpdated' => $purchaseUpdated
+        ];
+
+        // 如果成功更新 Purchase，返回 Purchase 数据
+        if ($purchaseUpdated && $purchaseData) {
+            $response['PurchaseID'] = $purchaseData['PurchaseID'];
+            $response['PurchaseData'] = $purchaseData;
+        }
+
+        echo json_encode($response);
 
     } catch (Exception $e) {
         $conn->rollBack();

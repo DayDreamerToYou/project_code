@@ -342,4 +342,162 @@ function restorePurchaseOrder($conn, $purchaseId, $landingData, $subtotal, $gst,
         ]);
     }
 }
+
+/**
+ * Update Purchase from Landing (called when Landing is edited)
+ * @param PDO $conn Database connection
+ * @param int $landingId Landing ID
+ * @return array Updated purchase data
+ * @throws Exception if update fails
+ */
+function updatePurchaseFromLanding($conn, $landingId) {
+    $purchaseId = $landingId + 50000;
+
+    // Check if Purchase exists
+    $checkSql = "SELECT PurchaseID, is_del FROM tblPurchase WHERE PurchaseID = ?";
+    $checkStmt = $conn->prepare($checkSql);
+    $checkStmt->execute([$purchaseId]);
+    $existingPurchase = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+    // If Purchase doesn't exist or is deleted, generate new one
+    if (!$existingPurchase || $existingPurchase['is_del'] == 1) {
+        return generatePurchaseFromLanding($conn, $landingId);
+    }
+
+    // Query landing record main table
+    $sql = "SELECT LandingID, LandingDate, SupplierID, PortID, BoatID
+            FROM tblLanding
+            WHERE LandingID = ? AND is_del = 0";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$landingId]);
+    $landingData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$landingData) {
+        throw new Exception('Landing record not found or has been deleted');
+    }
+
+    // Query landing details and related data
+    $detailSql = "SELECT
+                    ld.StockID,
+                    ld.BinID,
+                    ld.BinQty,
+                    ld.ICE,
+                    ld.`L-Weight`,
+                    ld.WeightUnitID,
+                    ld.Price,
+                    b.`B-Weight` AS BinWeight,
+                    s.Conversion,
+                    s.State,
+                    s.Description
+                 FROM tblLandingDetail ld
+                 LEFT JOIN tblBin b ON ld.BinID = b.BinID
+                 LEFT JOIN tblStock s ON ld.StockID = s.StockID
+                 WHERE ld.LandingID = ? AND ld.is_del = 0
+                 ORDER BY ld.ID";
+    $detailStmt = $conn->prepare($detailSql);
+    $detailStmt->execute([$landingId]);
+    $landingDetails = $detailStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Calculate fields for each detail and aggregate
+    $subtotal = 0;
+    $purchaseDetails = [];
+
+    foreach ($landingDetails as $detail) {
+        $lWeight = $detail['L-Weight'];
+        $weightUnitId = isset($detail['WeightUnitID']) ? intval($detail['WeightUnitID']) : 1;
+        $binWeight = floatval($detail['BinWeight'] ?? 0);
+        $binQty = intval($detail['BinQty'] ?? 1);
+        $conversion = floatval($detail['Conversion'] ?? 1);
+        $price = floatval($detail['Price'] ?? 0);
+
+        if (empty($lWeight) || $lWeight === '') {
+            $landedKG = 0;
+            $greenKG = 0;
+            $total = 0;
+        } else {
+            $lWeight = floatval($lWeight);
+            $totalBinWeight = $binWeight * $binQty;
+            $landedKG = $lWeight - $totalBinWeight;
+            $greenKG = $landedKG * $conversion;
+            $total = $landedKG * $price;
+        }
+
+        $subtotal += $total;
+
+        $purchaseDetails[] = [
+            'StockID' => $detail['StockID'],
+            'BinQty' => $binQty,
+            'UnloadingDocket' => $landingId,
+            'ICE' => intval($detail['ICE'] ?? 0),
+            'GreenKG' => round($greenKG, 3),
+            'LandedKG' => round($landedKG, 3),
+            'LandedWeightUnitID' => $weightUnitId,
+            'GreenWeightUnitID' => $weightUnitId,
+            'Price' => round($price, 2),
+            'Total' => round($total, 2)
+        ];
+    }
+
+    // Calculate main table amounts
+    $gst = $subtotal * 0.15;
+    $totalAmount = $subtotal + $gst;
+
+    // Update purchase main table
+    $updateMainSql = "UPDATE tblPurchase SET
+                        PurchaseDate = ?,
+                        SupplierID = ?,
+                        Subtotal = ?,
+                        GST = ?,
+                        Total = ?,
+                        update_time = NOW()
+                      WHERE PurchaseID = ?";
+    $updateMainStmt = $conn->prepare($updateMainSql);
+    $updateMainStmt->execute([
+        $landingData['LandingDate'],
+        $landingData['SupplierID'],
+        round($subtotal, 2),
+        round($gst, 2),
+        round($totalAmount, 2),
+        $purchaseId
+    ]);
+
+    // Delete old details
+    $deleteDetailsSql = "DELETE FROM tblPurchaseDetail WHERE PurchaseID = ?";
+    $deleteDetailsStmt = $conn->prepare($deleteDetailsSql);
+    $deleteDetailsStmt->execute([$purchaseId]);
+
+    // Insert new details
+    $detailInsertSql = "INSERT INTO tblPurchaseDetail (PurchaseID, StockID, BinQty, UnloadingDocket, ICE, GreenKG, LandedKG, LandedWeightUnitID, GreenWeightUnitID, Price, Total)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $detailInsertStmt = $conn->prepare($detailInsertSql);
+
+    foreach ($purchaseDetails as $detail) {
+        $detailInsertStmt->execute([
+            $purchaseId,
+            $detail['StockID'],
+            $detail['BinQty'],
+            $detail['UnloadingDocket'],
+            $detail['ICE'],
+            $detail['GreenKG'],
+            $detail['LandedKG'],
+            $detail['LandedWeightUnitID'],
+            $detail['GreenWeightUnitID'],
+            $detail['Price'],
+            $detail['Total']
+        ]);
+    }
+
+    return [
+        'PurchaseID' => $purchaseId,
+        'LandingID' => $landingId,
+        'PurchaseDate' => $landingData['LandingDate'],
+        'SupplierID' => $landingData['SupplierID'],
+        'Subtotal' => round($subtotal, 2),
+        'GST' => round($gst, 2),
+        'Total' => round($totalAmount, 2),
+        'details_count' => count($purchaseDetails),
+        'details' => $purchaseDetails,
+        'updated' => true
+    ];
+}
 ?>

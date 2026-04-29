@@ -25,8 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
  * 处理登出请求
  */
 try {
-    // 开启Session
+    // 开启Session并配置cookie持久化
     if (session_status() === PHP_SESSION_NONE) {
+        session_set_cookie_params([
+            'lifetime' => 86400 * 7,
+            'path' => '/',
+            'domain' => '',
+            'secure' => false,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
         session_start();
     }
 

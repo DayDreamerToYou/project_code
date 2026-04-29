@@ -7,6 +7,10 @@
 .env.local
 .env.*.local
 
+# 数据库备份文件（可能包含敏感数据）
+database/*backup*.sql
+database/*.sql.bak
+
 # 备份文件
 *.bak
 *.backup
@@ -21,6 +25,7 @@ backup/
 # IDE 配置
 .idea/
 .vscode/
+.trae/
 *.swp
 *.swo
 
@@ -32,7 +37,7 @@ Thumbs.db
 # vendor/
 
 # Node 依赖（如果有）
-# node_modules/
+node_modules/
 
 # 编译输出（如果有）
 # dist/

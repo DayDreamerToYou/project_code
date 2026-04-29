@@ -30,6 +30,7 @@
 - **数据导出**：支持 Excel、PDF 导出
 - **邮件通知**：支持发送邮件给供应商
 - **网络打印**：支持 ESC/POS 网络打印机
+- **数据联动**：供应商-船队-船只关联，自动筛选
 
 ## 业务流程
 
@@ -80,8 +81,8 @@ find /www/wwwroot/table-editor -type f -exec chmod 644 {} \;
 
 ### 5. 访问测试
 
-- **新版入口**：`http://your-domain.com/table-editor/public/`
-- **旧版入口**：`http://your-domain.com/table-editor/public/index-layui.html`
+- **新版入口 (Tailwind)**：`http://your-domain.com/table-editor/public/`
+- **旧版入口 (Layui)**：`http://your-domain.com/table-editor/public/index-layui.html`
 - 测试账号：`admin` / `123456`
 
 **生产环境请务必修改默认密码！**
@@ -93,40 +94,43 @@ table-editor/
 ├── api/                          # PHP API 接口
 │   ├── login.php                 # 登录认证
 │   ├── logout.php                # 用户登出
-│   ├── table.php                 # 通用 CRUD
-│   ├── landing.php               # 到货记录
-│   ├── purchase.php              # 采购记录
-│   ├── sales.php                 # 销售记录
+│   ├── landing.php               # 到货记录 CRUD
+│   ├── purchase.php              # 采购记录 CRUD
+│   ├── sales.php                 # 销售记录 CRUD
 │   ├── fleet.php                 # 船队管理
-│   ├── boat-management.php      # 船舶管理
+│   ├── boat-management.php       # 船舶管理
 │   ├── printer.php               # 打印机管理
 │   ├── units.php                 # 单位管理
 │   ├── supplier-stock-price.php  # 供应商定价
 │   ├── monthly-statistics.php    # 月度统计
 │   ├── data-management.php       # 基础数据管理
 │   ├── send-email.php            # 邮件发送
-│   └── landing-options.php       # 到货表单选项
+│   ├── landing-options.php       # 到货表单选项
+│   ├── landing-to-purchase.php   # 到货转采购
+│   └── purchase-to-sales.php     # 采购转销售
 ├── config/
-│   └── db.php                    # 数据库配置
+│   └── db.php                    # 数据库配置 (单例模式)
 ├── database/
-│   └── seafood_backup_20260409.sql  # 数据库备份（完整19表）
+│   └── seafood_backup_20260409.sql  # 数据库备份
+├── lib/
+│   └── PHPMailer/                # 邮件发送库
 ├── public/                       # Web 入口
-│   ├── index.html                # 主页面（新版 Tailwind）
-│   ├── index-layui.html          # 主页面（旧版 Layui）
-│   ├── data-management.html      # 基础数据管理（旧版）
-│   ├── monthly-report.html       # 月度汇总报表（旧版）
-│   ├── monthly-statistics.html   # 月度统计（旧版）
-│   ├── purchase-landing.html     # 采购关联到货（旧版）
-│   ├── print-landing.html        # 到货打印页面（旧版）
-│   ├── print-bill.html           # 单据打印页面（旧版）
+│   ├── index.html                # 主页面 (Tailwind 新版)
+│   ├── index-layui.html          # 主页面 (Layui 旧版)
+│   ├── data-management.html      # 基础数据管理 (Layui 旧版)
+│   ├── monthly-report.html       # 月度汇总报表
+│   ├── monthly-statistics.html   # 月度统计
+│   ├── purchase-landing.html     # 采购关联到货
+│   ├── print-landing.html        # 到货打印页面
+│   ├── print-bill.html           # 单据打印页面
 │   ├── css/
-│   │   └── style.css            # 样式文件
+│   │   └── style.css             # 样式文件
 │   └── js/
-│       ├── api.js               # API 调用封装
-│       ├── app.js               # 旧版 Layui 逻辑
-│       └── i18n.js              # 旧版国际化支持
+│       ├── api.js                # API 调用封装
+│       ├── app.js                # Layui 版核心逻辑
+│       └── i18n.js               # 国际化支持
 ├── docs/
-│   └── ARCHITECTURE.md          # 架构文档
+│   └── ARCHITECTURE.md           # 架构文档 (开发者参考)
 ├── MIGRATION_STATUS.md           # 迁移进度报告
 └── README.md
 ```
@@ -138,28 +142,25 @@ table-editor/
 - `POST /api/logout.php` - 用户登出
 
 ### 到货记录
-- `GET /api/landing.php?action=list` - 获取列表
-- `POST /api/landing.php?action=add` - 新增
-- `POST /api/landing.php?action=edit` - 编辑
-- `POST /api/landing.php?action=delete` - 删除
+- `GET /api/landing.php` - 获取列表/详情
+- `POST /api/landing.php` - 新增
+- `PUT /api/landing.php` - 编辑
+- `DELETE /api/landing.php` - 删除
 
 ### 采购记录
-- `GET /api/purchase.php?action=list` - 获取列表
-- `POST /api/purchase.php?action=generate` - 从到货生成
-- `POST /api/purchase.php?action=sendEmail` - 发送邮件
+- `GET /api/purchase.php` - 获取列表
+- `POST /api/purchase.php` - 新增/从到货生成
 
 ### 销售记录
-- `GET /api/sales.php?action=list` - 获取列表
-- `POST /api/sales.php?action=generate` - 从采购生成
+- `GET /api/sales.php` - 获取列表
+- `POST /api/sales.php` - 新增/从采购生成
 
 ### 基础数据管理
-- `GET /api/fleet.php?action=list` - 船队列表
-- `GET /api/boat-management.php?action=list` - 船舶列表
-- `GET /api/printer.php?action=list` - 打印机列表
-- `POST /api/printer.php?action=test` - 测试打印机
-- `POST /api/printer.php?action=setDefault` - 设置默认打印机
-- `GET /api/units.php?action=list` - 单位列表
-- `GET /api/supplier-stock-price.php?action=list` - 供应商定价列表
+- `GET /api/fleet.php` - 船队列表
+- `GET /api/boat-management.php` - 船舶列表
+- `GET /api/printer.php` - 打印机列表
+- `GET /api/units.php` - 单位列表
+- `GET /api/supplier-stock-price.php` - 供应商定价列表
 
 ### 报表统计
 - `GET /api/monthly-statistics.php` - 月度统计数据
@@ -191,8 +192,8 @@ $mail->Port     = 587;
 
 ## 常见问题
 
-**Q: 登录后自动退出？**
-→ 检查 PHP Session 存储路径权限
+**Q: 登录后刷新页面自动退出？**
+→ 检查 PHP Session 配置和 localStorage 持久化
 
 **Q: 表格数据不显示？**
 → 检查数据库连接和浏览器 Network 面板 API 响应
@@ -200,9 +201,21 @@ $mail->Port     = 587;
 **Q: 生成采购单提示"已生成"？**
 → 每个到货记录只能生成一次，在采购记录页面查找
 
-## 迁移说明
+**Q: Management 数据修改后选项未更新？**
+→ 系统会自动刷新选项，检查 API 响应是否成功
 
-项目已完成从 Layui 到 Tailwind CSS 的前端迁移，详见 [MIGRATION_STATUS.md](MIGRATION_STATUS.md)。
+## 版本说明
 
-- **新版**：使用 Tailwind CSS，支持移动端响应式和双语切换
-- **旧版**：保留 Layui 版本供对比参考
+项目已完成从 Layui 到 Tailwind CSS 的前端迁移：
+
+| 版本 | 入口文件 | 说明 |
+|------|----------|------|
+| 新版 | `index.html` | Tailwind CSS，响应式设计，移动端适配 |
+| 旧版 | `index-layui.html` | Layui 版本，保留供参考 |
+
+详细迁移进度见 [MIGRATION_STATUS.md](MIGRATION_STATUS.md)
+
+## 开发者文档
+
+详细的技术架构、API 设计、数据库结构请参考：
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - 技术架构文档

@@ -24,6 +24,20 @@ layui.use(['layer', 'form', 'table', 'element', 'api', 'jquery', 'laydate', 'i18
      * 检查登录状态
      */
     function checkLoginStatus() {
+        var savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            try {
+                var userData = JSON.parse(savedUser);
+                if (userData && userData.username) {
+                    isLoggedIn = true;
+                    initTables();
+                    return;
+                }
+            } catch (e) {
+                localStorage.removeItem('user');
+            }
+        }
+
         api.getList('landing', {}).then(function(res){
             if (res.logged_in === false || !res.success) {
                 isLoggedIn = false;
@@ -106,6 +120,9 @@ layui.use(['layer', 'form', 'table', 'element', 'api', 'jquery', 'laydate', 'i18
                         layer.closeAll('page');
                         layer.msg(layui.i18n ? layui.i18n.t('loginSuccess') : 'Login successful', {icon: 1});
                         isLoggedIn = true;
+                        if (res.data) {
+                            localStorage.setItem('user', JSON.stringify(res.data));
+                        }
                         initTables();
                     }).catch(function(err){
                         layer.close(loadingIndex);
@@ -129,7 +146,8 @@ layui.use(['layer', 'form', 'table', 'element', 'api', 'jquery', 'laydate', 'i18
 
         layer.confirm(confirmMsg, {btn: [btnConfirm, btnCancel]}, function(index){
             api.logout().then(function(){
-                layer.msg(i18n ? i18n.t('logoutSuccess') : 'Logged out successfully', {icon: 1});
+                layer.msg(i18n ? layui.i18n.t('logoutSuccess') : 'Logged out successfully', {icon: 1});
+                localStorage.removeItem('user');
                 location.reload();
             }).catch(function(){
                 layer.msg('Logout failed', {icon: 2});

@@ -1749,7 +1749,7 @@
             const result = await response.json();
 
             if (result.success) {
-                currentRecordData = result.data;
+                currentRecordData = { ...result.data, type: 'landing' };
                 renderEditForm(result.data);
             } else {
                 showToast(result.message || t('toast.loadFailed'), 'error');
@@ -1770,8 +1770,15 @@
             landingOptions.suppliers.map(s => '<option value="' + s.SupplierID + '"' + (data.SupplierID == s.SupplierID ? ' selected' : '') + '>' + s.SupplierName + '</option>').join('');
         const portOptions = '<option value="">' + t('records.selectPort') + '</option>' +
             landingOptions.ports.map(p => '<option value="' + p.PortID + '"' + (data.PortID == p.PortID ? ' selected' : '') + '>' + p.Port + '</option>').join('');
-        const boatOptions = '<option value="">' + t('records.selectBoat') + '</option>' +
-            landingOptions.boats.map(b => '<option value="' + b.BoatID + '"' + (data.BoatID == b.BoatID ? ' selected' : '') + '>' + b.BoatName + ' (' + b.BoatNo + ')</option>').join('');
+
+        // Get boats based on selected supplier
+        let boatOptions = '<option value="">' + t('records.selectBoat') + '</option>';
+        if (data.SupplierID && landingOptions.supplierBoatMap && landingOptions.supplierBoatMap[data.SupplierID]) {
+            const supplierBoats = landingOptions.supplierBoatMap[data.SupplierID];
+            boatOptions += supplierBoats.map(b => '<option value="' + b.BoatID + '"' + (data.BoatID == b.BoatID ? ' selected' : '') + '>' + b.BoatName + ' (' + b.BoatNo + ')</option>').join('');
+        } else {
+            boatOptions += landingOptions.boats.map(b => '<option value="' + b.BoatID + '"' + (data.BoatID == b.BoatID ? ' selected' : '') + '>' + b.BoatName + ' (' + b.BoatNo + ')</option>').join('');
+        }
 
         modalBody.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">' +
             '<div>' +
@@ -1780,7 +1787,7 @@
             '</div>' +
             '<div>' +
                 '<label class="block text-xs font-bold text-slate-500 uppercase mb-1">' + t('edit.supplier') + '</label>' +
-                '<select id="edit-supplier" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">' + supplierOptions + '</select>' +
+                '<select id="edit-supplier" onchange="filterBoatsBySupplier(this.value, \'edit-boat\')" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">' + supplierOptions + '</select>' +
             '</div>' +
             '<div>' +
                 '<label class="block text-xs font-bold text-slate-500 uppercase mb-1">' + t('edit.port') + '</label>' +
@@ -1823,6 +1830,31 @@
         '</div>';
     }
 
+    // Filter boats by selected supplier
+    function filterBoatsBySupplier(supplierId, selectId = 'edit-boat') {
+        const boatSelect = document.getElementById(selectId);
+        if (!boatSelect) return;
+
+        const currentBoatId = boatSelect.value;
+        let boats = [];
+        if (supplierId && landingOptions.supplierBoatMap && landingOptions.supplierBoatMap[supplierId]) {
+            boats = landingOptions.supplierBoatMap[supplierId];
+        } else {
+            boats = landingOptions.boats;
+        }
+
+        const placeholder = selectId === 'edit-boat' ? t('records.selectBoat') : t('records.selectBoat');
+        boatSelect.innerHTML = '<option value="">' + placeholder + '</option>' +
+            boats.map(b => '<option value="' + b.BoatID + '">' + b.BoatName + ' (' + b.BoatNo + ')</option>').join('');
+
+        if (currentBoatId) {
+            const boatExists = boats.some(b => b.BoatID == currentBoatId);
+            if (boatExists) {
+                boatSelect.value = currentBoatId;
+            }
+        }
+    }
+
     // Render details rows
     function renderDetailsRows(details) {
         if (!details || details.length === 0) {
@@ -1855,8 +1887,7 @@
                 (window.landingOptions.stockStateMap?.[stock] || []).map(s => '<option value="' + s + '"' + (s === state ? ' selected' : '') + '>' + s + '</option>').join('');
             const binOptions = '<option value="">' + t('records.selectBin') + '</option>' +
                 (landingOptions.bins || []).map(b => '<option value="' + b.BinID + '"' + (b.BinID == detail.BinID ? ' selected' : '') + '>' + b.BinName + ' (' + b['B-Weight'] + 'kg)</option>').join('');
-            const unitOptions = '<option value="1">KG</option>' +
-                (landingOptions.units || []).map(u => '<option value="' + u.UnitID + '"' + (u.UnitID == detail.WeightUnitID ? ' selected' : '') + '>' + u.UnitCode + '</option>').join('');
+            const unitOptions = (landingOptions.units || []).map(u => '<option value="' + u.UnitID + '"' + (u.UnitID == detail.WeightUnitID ? ' selected' : '') + '>' + u.UnitCode + '</option>').join('');
 
             return '<tr data-index="' + index + '">' +
                 '<td class="px-4 py-3">' +
@@ -1873,14 +1904,14 @@
                 '</td>' +
                 '<td class="px-4 py-3"><input class="w-16 border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-qty-input" type="number" value="' + (detail.BinQty || 1) + '" min="1"/></td>' +
                 '<td class="px-4 py-3">' +
-                    '<select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded">' +
+                    '<select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-ice-select">' +
                         '<option value="0"' + (detail.ICE == 0 ? ' selected' : '') + '>' + t('emailSent.no') + '</option>' +
                         '<option value="1"' + (detail.ICE == 1 ? ' selected' : '') + '>' + t('emailSent.yes') + '</option>' +
                     '</select>' +
                 '</td>' +
                 '<td class="px-4 py-3"><input class="w-20 border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-weight-input" type="number" step="0.1" value="' + (detail['L-Weight'] || '') + '"/></td>' +
                 '<td class="px-4 py-3">' +
-                    '<select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded">' + unitOptions + '</select>' +
+                    '<select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-unit-select">' + unitOptions + '</select>' +
                 '</td>' +
                 '<td class="px-4 py-3 text-right">' +
                     '<button onclick="removeDetailRow(' + index + ')" class="text-red-500 hover:text-red-700 transition-colors">' +
@@ -1901,8 +1932,7 @@
         const stateOptions = '<option value="">' + t('records.selectState') + '</option>';
         const binOptions = '<option value="">' + t('records.selectBin') + '</option>' +
             (landingOptions.bins || []).map(b => '<option value="' + b.BinID + '">' + b.BinName + ' (' + b['B-Weight'] + 'kg)</option>').join('');
-        const unitOptions = '<option value="1">KG</option>' +
-            (landingOptions.units || []).map(u => '<option value="' + u.UnitID + '">' + u.UnitCode + '</option>').join('');
+        const unitOptions = (landingOptions.units || []).map(u => '<option value="' + u.UnitID + '">' + u.UnitCode + '</option>').join('');
 
         const newRow = document.createElement('tr');
         newRow.dataset.index = newIndex;
@@ -1913,9 +1943,9 @@
             '<td class="px-4 py-3 detail-area text-sm text-blue-600 font-bold"></td>' +
             '<td class="px-4 py-3"><select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-bin-select">' + binOptions + '</select></td>' +
             '<td class="px-4 py-3"><input class="w-16 border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-qty-input" type="number" value="1" min="1"/></td>' +
-            '<td class="px-4 py-3"><select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded"><option value="0">' + t('emailSent.no') + '</option><option value="1">' + t('emailSent.yes') + '</option></select></td>' +
+            '<td class="px-4 py-3"><select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-ice-select"><option value="0">' + t('emailSent.no') + '</option><option value="1">' + t('emailSent.yes') + '</option></select></td>' +
             '<td class="px-4 py-3"><input class="w-20 border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-weight-input" type="number" step="0.1" placeholder="0.0"/></td>' +
-            '<td class="px-4 py-3"><select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded">' + unitOptions + '</select></td>' +
+            '<td class="px-4 py-3"><select class="w-full border-none p-0 text-sm focus:ring-0 bg-slate-50 border border-slate-200 rounded detail-unit-select">' + unitOptions + '</select></td>' +
             '<td class="px-4 py-3 text-right"><button onclick="removeDetailRow(' + newIndex + ')" class="text-red-500 hover:text-red-700 transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button></td>';
         tbody.appendChild(newRow);
 
@@ -1950,9 +1980,29 @@
             });
         }
 
-        // Update description, area, and price based on stock
-        if (window.landingOptions.stocks) {
-            const stockData = window.landingOptions.stocks.find(s => s.Stock === stock);
+        // Clear description and area until state is selected
+        descCell.textContent = '-';
+        descCell.style.color = '#999';
+        areaCell.textContent = '-';
+        areaCell.style.color = '#999';
+        priceInput.value = '';
+
+        // Bind state change event to update description
+        stateSelect.addEventListener('change', function() {
+            updateDetailRowDescription(rowIndex, stock, this.value);
+        });
+    }
+
+    // Update detail row description based on selected stock and state
+    function updateDetailRowDescription(rowIndex, stock, state) {
+        const descCell = document.querySelector(`tr[data-index="${rowIndex}"] .detail-description`);
+        const areaCell = document.querySelector(`tr[data-index="${rowIndex}"] .detail-area`);
+        const priceInput = document.querySelector(`tr[data-index="${rowIndex}"] .detail-price-input`);
+
+        if (!descCell) return;
+
+        if (stock && state && window.landingOptions.stocks) {
+            const stockData = window.landingOptions.stocks.find(s => s.Stock === stock && s.State === state);
             if (stockData) {
                 descCell.textContent = stockData.Description || '-';
                 descCell.style.color = stockData.Description ? '#059669' : '#999';
@@ -1993,7 +2043,7 @@
 
     // Open add modal
     function openAddModal() {
-        currentRecordData = { isNew: true };
+        currentRecordData = { isNew: true, type: 'landing' };
         const modal = document.getElementById('edit-modal');
         const modalBody = document.getElementById('edit-modal-body');
         const modalTitle = document.getElementById('edit-modal-title');
@@ -2015,7 +2065,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Supplier</label>
-                    <select id="edit-supplier" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">${supplierOptions}</select>
+                    <select id="edit-supplier" onchange="filterBoatsBySupplier(this.value, 'edit-boat')" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">${supplierOptions}</select>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Port</label>
@@ -2104,9 +2154,9 @@
             const priceInput = row.querySelector('.detail-price-input');
             const binSelect = row.querySelector('.detail-bin-select');
             const qtyInput = row.querySelector('.detail-qty-input');
-            const iceSelect = row.querySelector('select:nth-of-type(2)');
+            const iceSelect = row.querySelector('.detail-ice-select');
             const weightInput = row.querySelector('.detail-weight-input');
-            const unitSelect = row.querySelector('select:nth-of-type(3)');
+            const unitSelect = row.querySelector('.detail-unit-select');
 
             const stock = stockSelect?.value;
             const state = stateSelect?.value;
@@ -2163,8 +2213,6 @@
     async function savePurchaseRecord() {
         const purchaseDate = document.getElementById('edit-purchase-date')?.value;
         const supplierId = document.getElementById('edit-supplier')?.value;
-        const invoiceNo = document.getElementById('edit-invoice')?.value;
-        const status = document.getElementById('edit-status')?.value;
 
         if (!purchaseDate || !supplierId) {
             showToast('Please fill in all required fields', 'error');
@@ -2175,8 +2223,6 @@
             PurchaseID: currentRecordData.PurchaseID,
             PurchaseDate: purchaseDate,
             SupplierID: supplierId,
-            InvoiceNo: invoiceNo || '',
-            Status: parseInt(status) || 0,
             details: []
         };
 
@@ -3232,6 +3278,7 @@ async function netPrintRecord(type, id) {
     // Switch Management Tab
     function switchMgmtTab(tab) {
         window.currentMgmtTable = tab;
+        mgmtState.page = 1;
 
         document.querySelectorAll('.mgmt-tab-btn').forEach(btn => {
             if (btn.dataset.tab === tab) {
@@ -3269,7 +3316,7 @@ async function netPrintRecord(type, id) {
         const endpoints = {
             'suppliers': '/data-management.php?action=list&table=suppliers',
             'fleet': '/fleet.php?action=list',
-            'boat-management': '/data-management.php?action=list&table=boat',
+            'boat-management': '/boat-management.php?action=list',
             'port': '/data-management.php?action=list&table=port',
             'stock': '/data-management.php?action=list&table=stock',
             'bin': '/data-management.php?action=list&table=bin',
@@ -3285,7 +3332,7 @@ async function netPrintRecord(type, id) {
         const columns = {
             'suppliers': { id: 'SupplierID', display: ['SupplierName', 'Address', 'Person', 'Phone', 'Email', 'GST'] },
             'fleet': { id: 'FleetID', display: ['FleetName', 'BoatCount', 'SupplierCount'] },
-            'boat-management': { id: 'BoatID', display: ['BoatNo', 'BoatName', 'Person'] },
+            'boat-management': { id: 'BoatID', display: ['BoatNo', 'BoatName', 'Person', 'FleetNames'] },
             'port': { id: 'PortID', display: ['Port'] },
             'stock': { id: 'StockID', display: ['Stock', 'Description', 'State', 'Area', 'Price'] },
             'bin': { id: 'BinID', display: ['BinName', 'B-Weight'] },
@@ -3348,12 +3395,13 @@ async function netPrintRecord(type, id) {
 
         tbody.innerHTML = data.map(record => {
             const id = record[cols.id];
+            const idStr = typeof id === 'string' ? `'${id}'` : id;
             const actions = `
                 <div class="flex gap-1">
-                    <button onclick="editMgmtRecord('${table}', ${id})" class="w-7 h-7 flex items-center justify-center bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors" title="${t('btn.edit')}">
+                    <button onclick="editMgmtRecord('${table}', ${idStr})" class="w-7 h-7 flex items-center justify-center bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors" title="${t('btn.edit')}">
                         <span class="material-symbols-outlined text-[17px]">edit</span>
                     </button>
-                    <button onclick="deleteMgmtRecord('${table}', ${id})" class="w-7 h-7 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded transition-colors" title="${t('btn.delete')}">
+                    <button onclick="deleteMgmtRecord('${table}', ${idStr})" class="w-7 h-7 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded transition-colors" title="${t('btn.delete')}">
                         <span class="material-symbols-outlined text-[17px]">delete</span>
                     </button>
                 </div>
@@ -3395,17 +3443,20 @@ async function netPrintRecord(type, id) {
             {name: 'Phone', label: 'Phone', required: false, type: 'text'},
             {name: 'Email', label: 'Email', required: false, type: 'text'},
             {name: 'GST', label: 'GST', required: false, type: 'text'},
-            {name: 'QRN', label: 'QRN', required: false, type: 'text'}
+            {name: 'QRN', label: 'QRN', required: false, type: 'text'},
+            {name: 'FleetID', label: 'Fleet', required: false, type: 'select', optionsUrl: '../api/fleet.php?action=list'}
         ],
         'fleet': [
             {name: 'FleetID', label: 'Fleet ID', required: true, type: 'text'},
-            {name: 'FleetName', label: 'Fleet Name', required: true, type: 'text'}
+            {name: 'FleetName', label: 'Fleet Name', required: true, type: 'text'},
+            {name: 'BoatIDs', label: 'Boats', required: false, type: 'multiSelect', optionsUrl: '../api/boat-management.php?action=available-boats'}
         ],
         'boat-management': [
             {name: 'BoatID', label: 'Boat ID', required: true, type: 'text'},
             {name: 'BoatNo', label: 'Boat No', required: true, type: 'text'},
             {name: 'BoatName', label: 'Boat Name', required: true, type: 'text'},
-            {name: 'Person', label: 'Contact Person', required: false, type: 'text'}
+            {name: 'Person', label: 'Contact Person', required: false, type: 'text'},
+            {name: 'FleetIDs', label: 'Fleets', required: false, type: 'multiSelect', optionsUrl: '../api/fleet.php?action=list'}
         ],
         'port': [
             {name: 'PortID', label: 'Port ID', required: true, type: 'text'},
@@ -3475,7 +3526,7 @@ async function netPrintRecord(type, id) {
     let pendingDelete = { table: null, id: null };
 
     // Add Management Record
-    function addMgmtRecord(table) {
+    async function addMgmtRecord(table) {
         window.currentMgmtEditId = null;
         const modal = document.getElementById('mgmt-modal');
         const title = document.getElementById('mgmt-modal-title');
@@ -3483,42 +3534,106 @@ async function netPrintRecord(type, id) {
 
         title.textContent = t('management.add') + ' ' + getMgmtTableName(table);
 
-        // For price table, ensure landingOptions are loaded before building form
-        if (table === 'price') {
-            if (!window.landingOptions.suppliers || window.landingOptions.suppliers.length === 0) {
-                loadLandingOptions().then(() => {
-                    form.innerHTML = buildMgmtFormFields(table, null, false);
-                });
-                return;
-            }
-        }
+        // Load options for select/multiSelect fields
+        await loadMgmtOptions(table);
 
         form.innerHTML = buildMgmtFormFields(table, null, false);
         modal.classList.remove('hidden');
     }
 
+    // Load options for management forms
+    async function loadMgmtOptions(table, data) {
+        // Ensure landingOptions has suppliers and stocks for price table
+        if (table === 'price' || table === 'suppliers' || table === 'fleet' || table === 'boat-management') {
+            if (!window.landingOptions) {
+                await loadLandingOptions();
+            }
+        }
+
+        // Load fleet list for suppliers FleetID select
+        if (table === 'suppliers' && !window.mgmtFleets) {
+            try {
+                const res = await fetch('../api/fleet.php?action=list');
+                const data = await res.json();
+                window.mgmtFleets = data.data || [];
+            } catch (e) {
+                window.mgmtFleets = [];
+            }
+        }
+
+        // Load available boats for fleet BoatIDs multiSelect
+        if (table === 'fleet' && !window.mgmtAvailableBoats) {
+            try {
+                const res = await fetch('../api/boat-management.php?action=available-boats');
+                const data = await res.json();
+                window.mgmtAvailableBoats = data.data || [];
+            } catch (e) {
+                window.mgmtAvailableBoats = [];
+            }
+        }
+
+        // For Fleet editing, load associated boats
+        if (table === 'fleet' && data && data.FleetID) {
+            try {
+                const res = await fetch(`../api/fleet.php?action=boats&fleetId=${data.FleetID}`);
+                const result = await res.json();
+                window.mgmtSelectedBoats = result.data || [];
+            } catch (e) {
+                window.mgmtSelectedBoats = [];
+            }
+        } else if (table === 'fleet') {
+            window.mgmtSelectedBoats = [];
+        }
+
+        // Load fleet list for boat-management FleetIDs multiSelect
+        if (table === 'boat-management' && !window.mgmtFleets) {
+            try {
+                const res = await fetch('../api/fleet.php?action=list');
+                const data = await res.json();
+                window.mgmtFleets = data.data || [];
+            } catch (e) {
+                window.mgmtFleets = [];
+            }
+        }
+
+        // For Boat editing, load associated fleets
+        if (table === 'boat-management' && data && data.BoatID) {
+            try {
+                const res = await fetch(`../api/boat-management.php?action=fleets&boatId=${data.BoatID}`);
+                const result = await res.json();
+                window.mgmtSelectedFleets = result.data || [];
+            } catch (e) {
+                window.mgmtSelectedFleets = [];
+            }
+        } else if (table === 'boat-management') {
+            window.mgmtSelectedFleets = [];
+        }
+    }
+
     // Edit Management Record
-    function editMgmtRecord(table, id) {
+    async function editMgmtRecord(table, id) {
         window.currentMgmtEditId = id;
         window.currentMgmtEditTable = table;
 
-        fetch(getMgmtApiEndpoint(table))
-            .then(res => res.json())
-            .then(result => {
-                const data = result.data?.find(r => r[getMgmtTableColumns(table).id] == id);
-                if (data) {
-                    const modal = document.getElementById('mgmt-modal');
-                    const title = document.getElementById('mgmt-modal-title');
-                    const form = document.getElementById('mgmt-form');
+        // First fetch the record data
+        const result = await fetch(getMgmtApiEndpoint(table)).then(res => res.json());
+        const data = result.data?.find(r => r[getMgmtTableColumns(table).id] == id);
 
-                    title.textContent = t('management.edit') + ' ' + getMgmtTableName(table);
-                    form.innerHTML = buildMgmtFormFields(table, data, true);
-                    modal.classList.remove('hidden');
-                } else {
-                    showToast(t('toast.recordNotFound'), 'error');
-                }
-            })
-            .catch(() => showToast(t('toast.loadFailed'), 'error'));
+        if (!data) {
+            showToast(t('toast.recordNotFound'), 'error');
+            return;
+        }
+
+        // Load options with the fetched data to get associations
+        await loadMgmtOptions(table, data);
+
+        const modal = document.getElementById('mgmt-modal');
+        const title = document.getElementById('mgmt-modal-title');
+        const form = document.getElementById('mgmt-form');
+
+        title.textContent = t('management.edit') + ' ' + getMgmtTableName(table);
+        form.innerHTML = buildMgmtFormFields(table, data, true);
+        modal.classList.remove('hidden');
     }
 
     // Build form fields HTML
@@ -3527,11 +3642,29 @@ async function netPrintRecord(type, id) {
         let html = '<div class="space-y-4">';
 
         fields.forEach(field => {
+            // Skip primary key ID fields when adding new record (not editing)
+            // These are true primary keys that should be auto-generated
+            const isPrimaryKey = (
+                field.name === 'SupplierID' || field.name === 'BoatID' || field.name === 'PortID' ||
+                field.name === 'StockID' || field.name === 'PriceID' || field.name === 'BinID' ||
+                field.name === 'id' || field.name === 'UnitID'
+            );
+            // FleetID is a foreign key for suppliers (not a primary key), so don't skip it
+            if (!isEdit && isPrimaryKey && !(table === 'suppliers' && field.name === 'FleetID')) {
+                return;
+            }
+
             const value = data ? (data[field.name] || '') : (field.defaultValue || '');
             const required = field.required ? 'required' : '';
-            const disabled = (isEdit && field.name === 'SupplierID') || (isEdit && field.name === 'FleetID') || (isEdit && field.name === 'BinID') ? 'disabled' : '';
+            // Primary keys should be disabled when editing
+            const isDisabledId = (isEdit && (field.name === 'SupplierID' || field.name === 'BinID')) ||
+                                  (isEdit && table !== 'suppliers' && field.name === 'FleetID') ||
+                                  (isEdit && field.name === 'BoatID') ||
+                                  (isEdit && field.name === 'PortID');
+            const disabled = isDisabledId ? 'disabled' : '';
 
-            if (isEdit && (field.name === 'SupplierID' || field.name === 'FleetID' || field.name === 'BinID')) {
+            // For edit mode, add hidden input for primary keys (but not for suppliers FleetID which is editable)
+            if (isEdit && field.name !== 'FleetID' && (field.name === 'SupplierID' || field.name === 'BinID' || field.name === 'BoatID' || field.name === 'PortID')) {
                 html += `<input type="hidden" name="${field.name}" value="${value}">`;
             }
 
@@ -3557,6 +3690,36 @@ async function netPrintRecord(type, id) {
                     <option value="0" ${value == '0' || value == 0 ? 'selected' : ''}>${t('management.enabled')}</option>
                     <option value="1" ${value == '1' || value == 1 ? 'selected' : ''}>${t('management.disabled')}</option>
                 </select>`;
+            } else if (field.type === 'select' && field.name === 'FleetID' && table === 'suppliers') {
+                // Suppliers FleetID select
+                const fleets = window.mgmtFleets || [];
+                const selectedId = value || data?.FleetID || '';
+                inputHtml = `<select name="${field.name}" class="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    <option value="">${t('management.selectFleet') || 'Select Fleet'}</option>
+                    ${fleets.map(f => `<option value="${f.FleetID}" ${selectedId == f.FleetID ? 'selected' : ''}>${f.FleetName}</option>`).join('')}
+                </select>`;
+            } else if (field.type === 'multiSelect' && field.name === 'BoatIDs' && table === 'fleet') {
+                // Fleet BoatIDs multiSelect - use mgmtSelectedBoats for editing
+                const boats = window.mgmtAvailableBoats || [];
+                const selectedBoats = window.mgmtSelectedBoats || [];
+                const selectedBoatIds = selectedBoats.map(b => String(b.BoatID));
+                inputHtml = `<div class="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-lg min-h-[50px]">
+                    ${boats.map(b => `<label class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded cursor-pointer hover:bg-slate-200 transition-colors">
+                        <input type="checkbox" name="BoatIDs" value="${b.BoatID}" ${selectedBoatIds.includes(String(b.BoatID)) ? 'checked' : ''} class="rounded">
+                        <span class="text-sm">${b.BoatName} (${b.BoatNo})</span>
+                    </label>`).join('')}
+                </div>`;
+            } else if (field.type === 'multiSelect' && field.name === 'FleetIDs' && table === 'boat-management') {
+                // Boat-management FleetIDs multiSelect - use mgmtSelectedFleets for editing
+                const fleets = window.mgmtFleets || [];
+                const selectedFleets = window.mgmtSelectedFleets || [];
+                const selectedFleetIds = selectedFleets.map(f => String(f.FleetID));
+                inputHtml = `<div class="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-lg min-h-[50px]">
+                    ${fleets.map(f => `<label class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded cursor-pointer hover:bg-slate-200 transition-colors">
+                        <input type="checkbox" name="FleetIDs" value="${f.FleetID}" ${selectedFleetIds.includes(String(f.FleetID)) ? 'checked' : ''} class="rounded">
+                        <span class="text-sm">${f.FleetName}</span>
+                    </label>`).join('')}
+                </div>`;
             } else {
                 inputHtml = `<input type="${field.type}" name="${field.name}" value="${value}" ${required} ${disabled}
                     class="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${disabled ? 'bg-slate-100' : ''}"
@@ -3592,9 +3755,23 @@ async function netPrintRecord(type, id) {
         const formData = new FormData(form);
         const data = {};
 
+        // Handle form data, including multiSelect checkboxes
+        const checkboxValues = {};
         formData.forEach((value, key) => {
-            data[key] = value;
+            if (key === 'BoatIDs' || key === 'FleetIDs') {
+                if (!checkboxValues[key]) {
+                    checkboxValues[key] = [];
+                }
+                checkboxValues[key].push(value);
+            } else {
+                data[key] = value;
+            }
         });
+
+        // Add multiSelect values as comma-separated strings
+        for (const key in checkboxValues) {
+            data[key] = checkboxValues[key].join(',');
+        }
 
         let url, method;
         if (isEdit) {
@@ -3647,11 +3824,15 @@ async function netPrintRecord(type, id) {
         })
         .then(res => res.json())
         .then(result => {
-            const success = result.success !== false && result.code !== 1;
-            showToast(success ? (isEdit ? 'Record updated' : 'Record added') : (result.error || 'Operation failed'), success ? 'success' : 'error');
+            const success = result.code === 0 || result.success === true;
+            showToast(success ? (isEdit ? 'Record updated' : 'Record added') : (result.error || result.msg || 'Operation failed'), success ? 'success' : 'error');
             if (success) {
                 closeMgmtModal();
                 refreshManagementTable();
+                // Refresh landing options if suppliers, fleet, boats or ports were modified
+                if (['suppliers', 'fleet', 'boat-management', 'port'].includes(table)) {
+                    loadLandingOptions().catch(() => {});
+                }
             }
         })
         .catch(() => showToast(t('toast.networkError'), 'error'));
@@ -3712,9 +3893,14 @@ async function netPrintRecord(type, id) {
         })
         .then(res => res.json())
         .then(result => {
-            const success = result.success !== false && result.code === 0;
-            showToast(success ? t('toast.recordDeleted') : t('toast.deleteFailed'), success ? 'success' : 'error');
-            if (success) refreshManagementTable();
+            const success = result.code === 0 || result.success === true;
+            showToast(success ? t('toast.recordDeleted') : (result.error || result.msg || t('toast.deleteFailed')), success ? 'success' : 'error');
+            if (success) {
+                refreshManagementTable();
+                if (['suppliers', 'fleet', 'boat-management', 'port'].includes(table)) {
+                    loadLandingOptions().catch(() => {});
+                }
+            }
         })
         .catch(() => showToast(t('toast.deleteFailed'), 'error'))
         .finally(() => closeDeleteModal());
@@ -4074,8 +4260,12 @@ async function netPrintRecord(type, id) {
         const supplierOptions = '<option value="">Select Supplier</option>' +
             landingOptions.suppliers.map(s => `<option value="${s.SupplierID}" ${data.SupplierID == s.SupplierID ? 'selected' : ''}>${s.SupplierName}</option>`).join('');
 
+        const subtotal = data.Subtotal || 0;
+        const gst = data.GST || 0;
+        const total = data.Total || 0;
+
         modalBody.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Purchase Date</label>
                     <input id="edit-purchase-date" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" type="date" value="${data.PurchaseDate || ''}"/>
@@ -4085,15 +4275,16 @@ async function netPrintRecord(type, id) {
                     <select id="edit-supplier" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">${supplierOptions}</select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice No</label>
-                    <input id="edit-invoice" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" type="text" value="${data.InvoiceNo || ''}"/>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Subtotal</label>
+                    <input id="edit-purchase-subtotal" class="w-full border-slate-200 rounded-lg text-sm bg-slate-50" type="number" step="0.01" value="${subtotal}" readonly/>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-                    <select id="edit-status" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">
-                        <option value="0" ${data.Status == 0 ? 'selected' : ''}>Pending</option>
-                        <option value="1" ${data.Status == 1 ? 'selected' : ''}>Completed</option>
-                    </select>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">GST</label>
+                    <input id="edit-purchase-gst" class="w-full border-slate-200 rounded-lg text-sm bg-slate-50" type="number" step="0.01" value="${gst}" readonly/>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Total</label>
+                    <input id="edit-purchase-total" class="w-full border-slate-200 rounded-lg text-sm bg-slate-50 font-bold" type="number" step="0.01" value="${total}" readonly/>
                 </div>
             </div>
             <div class="border border-slate-200 rounded-lg overflow-hidden">
@@ -4282,6 +4473,33 @@ async function netPrintRecord(type, id) {
         if (landed > 0) {
             updateLandingLWeight(row, stock, state, landed);
         }
+
+        // Update purchase totals
+        updatePurchaseTotals();
+    }
+
+    // Update Purchase Subtotal, GST, Total
+    function updatePurchaseTotals() {
+        const tbody = document.getElementById('edit-details-body');
+        if (!tbody) return;
+
+        let subtotal = 0;
+        tbody.querySelectorAll('tr').forEach(row => {
+            const totalInput = row.querySelector('.purchase-detail-total');
+            const total = parseFloat(totalInput?.value) || 0;
+            subtotal += total;
+        });
+
+        const gst = subtotal * 0.1;
+        const total = subtotal + gst;
+
+        const subtotalInput = document.getElementById('edit-purchase-subtotal');
+        const gstInput = document.getElementById('edit-purchase-gst');
+        const totalInput = document.getElementById('edit-purchase-total');
+
+        if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+        if (gstInput) gstInput.value = gst.toFixed(2);
+        if (totalInput) totalInput.value = total.toFixed(2);
     }
 
     // Update Landing L-Weight from Purchase Detail changes
@@ -4428,7 +4646,10 @@ async function netPrintRecord(type, id) {
     function removePurchaseDetailRow(index) {
         const tbody = document.getElementById('edit-details-body');
         const row = tbody.querySelector(`tr[data-index="${index}"]`);
-        if (row) row.remove();
+        if (row) {
+            row.remove();
+            updatePurchaseTotals();
+        }
     }
 
     // Generate Sales from Purchase
@@ -5151,16 +5372,30 @@ async function netPrintRecord(type, id) {
 
     // Check login status on page load
     async function checkLoginStatus() {
+        var savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            try {
+                var userData = JSON.parse(savedUser);
+                if (userData && userData.username) {
+                    isLoggedIn = true;
+                    if (document.getElementById('user-name')) {
+                        document.getElementById('user-name').textContent = userData.username;
+                    }
+                    showMainContent();
+                    return;
+                }
+            } catch (e) {
+                localStorage.removeItem('user');
+            }
+        }
+
         try {
-            const response = await fetch(API_BASE + '/login.php', {
+            const response = await fetch(API_BASE + '/landing.php', {
                 credentials: 'include'
             });
             const result = await response.json();
-            if (result.success && result.logged_in) {
+            if (result.success && result.logged_in !== false) {
                 isLoggedIn = true;
-                if (result.user && result.user.username) {
-                    document.getElementById('user-name').textContent = result.user.username;
-                }
                 showMainContent();
             } else {
                 isLoggedIn = false;
@@ -5233,6 +5468,7 @@ async function netPrintRecord(type, id) {
                         showToast(t('toast.loginSuccess'), 'success');
                         if (result.data && result.data.username) {
                             document.getElementById('user-name').textContent = result.data.username;
+                            localStorage.setItem('user', JSON.stringify(result.data));
                         }
                         showMainContent();
                     } else {
@@ -5263,6 +5499,7 @@ async function netPrintRecord(type, id) {
             console.error('Logout error:', error);
         }
         isLoggedIn = false;
+        localStorage.removeItem('user');
         showLoginModal();
     }
 
