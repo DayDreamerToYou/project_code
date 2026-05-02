@@ -3660,11 +3660,14 @@ async function netPrintRecord(type, id) {
             const isDisabledId = (isEdit && (field.name === 'SupplierID' || field.name === 'BinID')) ||
                                   (isEdit && table !== 'suppliers' && field.name === 'FleetID') ||
                                   (isEdit && field.name === 'BoatID') ||
-                                  (isEdit && field.name === 'PortID');
+                                  (isEdit && field.name === 'PortID') ||
+                                  (isEdit && field.name === 'PriceID') ||
+                                  (isEdit && field.name === 'UnitID') ||
+                                  (isEdit && field.name === 'id');
             const disabled = isDisabledId ? 'disabled' : '';
 
             // For edit mode, add hidden input for primary keys (but not for suppliers FleetID which is editable)
-            if (isEdit && field.name !== 'FleetID' && (field.name === 'SupplierID' || field.name === 'BinID' || field.name === 'BoatID' || field.name === 'PortID')) {
+            if (isEdit && field.name !== 'FleetID' && (field.name === 'SupplierID' || field.name === 'BinID' || field.name === 'BoatID' || field.name === 'PortID' || field.name === 'PriceID' || field.name === 'UnitID' || field.name === 'id')) {
                 html += `<input type="hidden" name="${field.name}" value="${value}">`;
             }
 
@@ -3768,9 +3771,9 @@ async function netPrintRecord(type, id) {
             }
         });
 
-        // Add multiSelect values as comma-separated strings
+        // Add multiSelect values as arrays (backend expects arrays for BoatIDs/FleetIDs)
         for (const key in checkboxValues) {
-            data[key] = checkboxValues[key].join(',');
+            data[key] = checkboxValues[key];
         }
 
         let url, method;
@@ -3779,10 +3782,10 @@ async function netPrintRecord(type, id) {
                 url = API_BASE + '/supplier-stock-price.php';
                 method = 'PUT';
             } else if (table === 'fleet') {
-                url = API_BASE + '/fleet.php?action=edit';
+                url = API_BASE + '/fleet.php?action=update';
                 method = 'POST';
             } else if (table === 'boat-management') {
-                url = API_BASE + '/boat-management.php?action=edit';
+                url = API_BASE + '/boat-management.php?action=update';
                 method = 'POST';
             } else if (table === 'printer') {
                 url = API_BASE + '/printer.php?action=edit';
@@ -3794,7 +3797,14 @@ async function netPrintRecord(type, id) {
                 url = API_BASE + '/data-management.php?action=update&table=' + table;
                 method = 'POST';
             }
-            if (table !== 'price') data.id = id;
+            // Set the ID field based on table type (backend expects specific field names)
+            if (table === 'fleet') {
+                data.FleetID = id;
+            } else if (table === 'boat-management') {
+                data.BoatID = id;
+            } else if (table !== 'price') {
+                data.id = id;
+            }
         } else {
             if (table === 'price') {
                 url = API_BASE + '/supplier-stock-price.php';
