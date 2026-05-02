@@ -2545,6 +2545,25 @@
             if (emailResult.success) {
                 showToast(t('toast.emailSent'), 'success');
                 closeEmailModal();
+                
+                // Update EmailSent field for purchase records
+                if (recordType === 'purchase') {
+                    try {
+                        await fetch(API_BASE + '/purchase.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'updateEmailSent',
+                                PurchaseID: recordId,
+                                EmailSent: 1
+                            })
+                        });
+                        // Refresh the purchase table to show updated EmailSent status
+                        loadPurchaseData();
+                    } catch (updateError) {
+                        console.error('Failed to update EmailSent:', updateError);
+                    }
+                }
             } else {
                 showToast(emailResult.message || 'Failed to send email', 'error');
             }
