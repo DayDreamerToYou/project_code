@@ -137,6 +137,10 @@ function handleGet($conn) {
     $pageSize = isset($_GET['pageSize']) ? max(1, intval($_GET['pageSize'])) : 10;
     $search = isset($_GET['search']) ? trim($_GET['search']) : '';
     $offset = ($page - 1) * $pageSize;
+    
+    // 获取排序参数
+    $sortField = isset($_GET['field']) ? trim($_GET['field']) : 'LandingID';
+    $sortOrder = isset($_GET['order']) ? trim($_GET['order']) : 'desc';
 
     // 构建查询条件
     $where = "l.is_del = 0";
@@ -159,6 +163,20 @@ function handleGet($conn) {
     $stmt->execute($params);
     $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
+    // 构建排序子句（防止 SQL 注入）
+    $allowedSortFields = [
+        'LandingID' => 'l.LandingID',
+        'LandingDate' => 'l.LandingDate',
+        'SupplierName' => 's.SupplierName',
+        'Port' => 'p.Port',
+        'BoatNo' => 'b.BoatNo',
+        'BoatName' => 'b.BoatName',
+        'detail_count' => 'detail_count'
+    ];
+    
+    $orderByField = isset($allowedSortFields[$sortField]) ? $allowedSortFields[$sortField] : 'l.LandingID';
+    $orderByOrder = strtolower($sortOrder) === 'asc' ? 'ASC' : 'DESC';
+
     // 查询数据
     $sql = "SELECT l.LandingID, l.LandingDate, l.SupplierID, l.PortID, l.BoatID,
                    s.SupplierName, s.QRN, s.Email, p.Port, b.BoatName, b.BoatNo,
@@ -173,7 +191,7 @@ function handleGet($conn) {
             LEFT JOIN tblPort p ON l.PortID = p.PortID
             LEFT JOIN tblBoat b ON l.BoatID = b.BoatID
             WHERE $where
-            ORDER BY l.LandingDate ASC, l.LandingID ASC
+            ORDER BY $orderByField $orderByOrder
             LIMIT ? OFFSET ?";
     $params[] = $pageSize;
     $params[] = $offset;

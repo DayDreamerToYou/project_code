@@ -78,6 +78,14 @@
             font-variation-settings: 'FILL' 1;
         }
 
+        .sort-icon {
+            color: #94a3b8;
+            transition: color 0.15s;
+        }
+        th:hover .sort-icon {
+            color: #3b82f6;
+        }
+
         /* Force bottom navigation to stay fixed */
         #mobile-bottom-nav {
             position: fixed !important;
@@ -1313,16 +1321,60 @@
         }
     }
 
+    function getSortIcon(field, currentSortField, currentSortOrder) {
+        if (field !== currentSortField) {
+            return 'unfold_more';
+        }
+        return currentSortOrder === 'asc' ? 'expand_less' : 'expand_more';
+    }
+
+    function handleSort(module, field) {
+        const state = recordsState[module];
+        if (!state) return;
+        if (state.sortField === field) {
+            state.sortOrder = state.sortOrder === 'desc' ? 'asc' : 'desc';
+        } else {
+            state.sortField = field;
+            state.sortOrder = 'asc';
+        }
+        state.page = 1;
+        updateTableHeaders(module);
+        if (module === 'landing') {
+            loadRecordsData();
+        } else if (module === 'purchase') {
+            loadPurchaseData();
+        } else if (module === 'sales') {
+            loadSalesData();
+        }
+    }
+
     function updateTableHeaders(tab) {
         const thead = document.querySelector('#records-table-container thead tr');
         if (!thead) return;
 
         if (tab === 'landing') {
+            const sortField = recordsState.landing.sortField;
+            const sortOrder = recordsState.landing.sortOrder;
             thead.innerHTML = `
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.action')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.id')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.date')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.supplierName')}</th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('landing', 'LandingID')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.id')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="LandingID">${getSortIcon('LandingID', sortField, sortOrder)}</span>
+                    </div>
+                </th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('landing', 'LandingDate')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.date')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="LandingDate">${getSortIcon('LandingDate', sortField, sortOrder)}</span>
+                    </div>
+                </th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('landing', 'SupplierName')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.supplierName')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="SupplierName">${getSortIcon('SupplierName', sortField, sortOrder)}</span>
+                    </div>
+                </th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.port')}</th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.boatNo')}</th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.boatName')}</th>
@@ -1330,11 +1382,28 @@
             `;
             document.getElementById('records-table-body').setAttribute('data-tab', 'landing');
         } else if (tab === 'purchase') {
+            const sortField = recordsState.purchase.sortField;
+            const sortOrder = recordsState.purchase.sortOrder;
             thead.innerHTML = `
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.action')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.id')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('edit.purchaseDate')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.supplierName')}</th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('purchase', 'PurchaseID')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.id')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="PurchaseID">${getSortIcon('PurchaseID', sortField, sortOrder)}</span>
+                    </div>
+                </th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('purchase', 'PurchaseDate')">
+                    <div class="flex items-center gap-1">
+                        ${t('edit.purchaseDate')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="PurchaseDate">${getSortIcon('PurchaseDate', sortField, sortOrder)}</span>
+                    </div>
+                </th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('purchase', 'SupplierName')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.supplierName')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="SupplierName">${getSortIcon('SupplierName', sortField, sortOrder)}</span>
+                    </div>
+                </th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.boatName')}</th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.boatNo')}</th>
                 <th class="px-4 py-4 border-b border-slate-200 text-center">${t('table.detailCount')}</th>
@@ -1345,11 +1414,28 @@
             `;
             document.getElementById('records-table-body').setAttribute('data-tab', 'purchase');
         } else if (tab === 'sales') {
+            const sortField = recordsState.sales.sortField;
+            const sortOrder = recordsState.sales.sortOrder;
             thead.innerHTML = `
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.action')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.id')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('edit.salesDate')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${t('table.customerName')}</th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('sales', 'SalesID')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.id')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="SalesID">${getSortIcon('SalesID', sortField, sortOrder)}</span>
+                    </div>
+                </th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('sales', 'SaleDate')">
+                    <div class="flex items-center gap-1">
+                        ${t('edit.salesDate')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="SaleDate">${getSortIcon('SaleDate', sortField, sortOrder)}</span>
+                    </div>
+                </th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors" onclick="handleSort('sales', 'CustomerName')">
+                    <div class="flex items-center gap-1">
+                        ${t('table.customerName')}
+                        <span class="material-symbols-outlined text-[16px] sort-icon" data-field="CustomerName">${getSortIcon('CustomerName', sortField, sortOrder)}</span>
+                    </div>
+                </th>
                 <th class="px-4 py-4 border-b border-slate-200 text-center">${t('table.detailCount')}</th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.subtotal')}</th>
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.gst')}</th>
@@ -1362,9 +1448,9 @@
     // Load records data
     // Records page pagination state
     let recordsState = {
-        landing: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-        purchase: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-        sales: { page: 1, pageSize: 10, total: 0, totalPages: 0 }
+        landing: { page: 1, pageSize: 10, total: 0, totalPages: 0, sortField: 'LandingID', sortOrder: 'desc' },
+        purchase: { page: 1, pageSize: 10, total: 0, totalPages: 0, sortField: 'PurchaseID', sortOrder: 'desc' },
+        sales: { page: 1, pageSize: 10, total: 0, totalPages: 0, sortField: 'SalesID', sortOrder: 'desc' }
     };
 
     // Management page pagination state
@@ -1423,7 +1509,9 @@
         try {
             const params = new URLSearchParams({
                 page: recordsState.landing.page,
-                pageSize: recordsState.landing.pageSize
+                pageSize: recordsState.landing.pageSize,
+                field: recordsState.landing.sortField,
+                order: recordsState.landing.sortOrder
             });
             const response = await fetch(API_BASE + '/landing.php?includeDetails=true&' + params);
             const result = await response.json();
@@ -1560,6 +1648,8 @@
             const params = new URLSearchParams({
                 page: recordsState.purchase.page,
                 pageSize: recordsState.purchase.pageSize,
+                field: recordsState.purchase.sortField,
+                order: recordsState.purchase.sortOrder,
                 _t: Date.now()
             });
             const response = await fetch(API_BASE + '/purchase.php?' + params, { cache: 'no-store' });
@@ -1645,7 +1735,9 @@
         try {
             const params = new URLSearchParams({
                 page: recordsState.sales.page,
-                pageSize: recordsState.sales.pageSize
+                pageSize: recordsState.sales.pageSize,
+                field: recordsState.sales.sortField,
+                order: recordsState.sales.sortOrder
             });
             const response = await fetch(API_BASE + '/sales.php?' + params);
             const result = await response.json();

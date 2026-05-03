@@ -127,6 +127,10 @@ function handleGet($conn) {
     $pageSize = isset($_GET['pageSize']) ? max(1, intval($_GET['pageSize'])) : 10;
     $search = isset($_GET['search']) ? trim($_GET['search']) : '';
     $offset = ($page - 1) * $pageSize;
+    
+    // 获取排序参数
+    $sortField = isset($_GET['field']) ? trim($_GET['field']) : 'PurchaseID';
+    $sortOrder = isset($_GET['order']) ? trim($_GET['order']) : 'desc';
 
     // 构建查询条件
     $where = "p.is_del = 0";
@@ -147,6 +151,22 @@ function handleGet($conn) {
     $stmt->execute($params);
     $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
+    // 构建排序子句（防止 SQL 注入）
+    $allowedSortFields = [
+        'PurchaseID' => 'p.PurchaseID',
+        'PurchaseDate' => 'p.PurchaseDate',
+        'SupplierName' => 's.SupplierName',
+        'BoatName' => 'b.BoatName',
+        'BoatNo' => 'b.BoatNo',
+        'detail_count' => 'detail_count',
+        'Subtotal' => 'p.Subtotal',
+        'GST' => 'p.GST',
+        'Total' => 'p.Total'
+    ];
+    
+    $orderByField = isset($allowedSortFields[$sortField]) ? $allowedSortFields[$sortField] : 'p.PurchaseID';
+    $orderByOrder = strtolower($sortOrder) === 'asc' ? 'ASC' : 'DESC';
+
     // 查询数据
     $sql = "SELECT p.PurchaseID, p.PurchaseDate, p.SupplierID, p.Subtotal, p.GST, p.Total, p.EmailSent,
                    s.SupplierName, s.Email, s.GST as SupplierGST,
@@ -159,7 +179,7 @@ function handleGet($conn) {
             LEFT JOIN tblLanding l ON p.LandingID = l.LandingID
             LEFT JOIN tblBoat b ON l.BoatID = b.BoatID
             WHERE $where
-            ORDER BY p.PurchaseDate DESC, p.PurchaseID DESC
+            ORDER BY $orderByField $orderByOrder
             LIMIT ? OFFSET ?";
     $params[] = $pageSize;
     $params[] = $offset;
