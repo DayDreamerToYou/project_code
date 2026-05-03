@@ -138,7 +138,7 @@ try {
         'filters' => [
             'month' => $month,
             'supplierIds' => $supplierIds,
-            'stockIds' => $stockIds,
+            'stockIds' => $stockNames,
             'view' => $view
         ],
         'options' => $optionsInfo

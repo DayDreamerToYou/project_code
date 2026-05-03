@@ -1458,7 +1458,10 @@
         page: 1,
         pageSize: 10,
         total: 0,
-        totalPages: 0
+        totalPages: 0,
+        sortField: '',
+        sortOrder: 'desc',
+        allData: []
     };
 
     function goToMgmtPage(dir) {
@@ -3390,6 +3393,8 @@ async function netPrintRecord(type, id) {
     function switchMgmtTab(tab) {
         window.currentMgmtTable = tab;
         mgmtState.page = 1;
+        mgmtState.sortField = '';
+        mgmtState.sortOrder = 'desc';
 
         document.querySelectorAll('.mgmt-tab-btn').forEach(btn => {
             if (btn.dataset.tab === tab) {
@@ -3469,19 +3474,54 @@ async function netPrintRecord(type, id) {
                 allData = result.data || result.records || [];
             }
 
+            mgmtState.allData = allData;
             mgmtState.total = allData.length;
             mgmtState.totalPages = Math.ceil(mgmtState.total / mgmtState.pageSize) || 1;
 
-            const start = (mgmtState.page - 1) * mgmtState.pageSize;
-            const end = start + mgmtState.pageSize;
-            const pageData = allData.slice(start, end);
-
-            renderMgmtTable(table, pageData);
-            renderMgmtPagination();
+            applyMgmtSortAndRender(table);
         } catch (error) {
             console.error('Error loading management data:', error);
             tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">' + t('toast.loadFailed') + '</td></tr>';
         }
+    }
+
+    function handleMgmtSort(field) {
+        if (mgmtState.sortField === field) {
+            mgmtState.sortOrder = mgmtState.sortOrder === 'desc' ? 'asc' : 'desc';
+        } else {
+            mgmtState.sortField = field;
+            mgmtState.sortOrder = 'asc';
+        }
+        mgmtState.page = 1;
+        applyMgmtSortAndRender(window.currentMgmtTable);
+    }
+
+    function applyMgmtSortAndRender(table) {
+        let allData = [...mgmtState.allData];
+        const cols = getMgmtTableColumns(table);
+
+        if (mgmtState.sortField) {
+            allData.sort((a, b) => {
+                let valA = a[mgmtState.sortField];
+                let valB = b[mgmtState.sortField];
+                if (valA === null || valA === undefined) valA = '';
+                if (valB === null || valB === undefined) valB = '';
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return mgmtState.sortOrder === 'asc' ? valA - valB : valB - valA;
+                }
+                valA = String(valA);
+                valB = String(valB);
+                const cmp = valA.localeCompare(valB, undefined, { numeric: true });
+                return mgmtState.sortOrder === 'asc' ? cmp : -cmp;
+            });
+        }
+
+        const start = (mgmtState.page - 1) * mgmtState.pageSize;
+        const end = start + mgmtState.pageSize;
+        const pageData = allData.slice(start, end);
+
+        renderMgmtTable(table, pageData);
+        renderMgmtPagination();
     }
 
     // Render Management Table
@@ -3491,10 +3531,14 @@ async function netPrintRecord(type, id) {
         const cols = getMgmtTableColumns(table);
         const displayCols = cols.display;
 
+        const sortIcon = getSortIcon(cols.id, mgmtState.sortField, mgmtState.sortOrder);
+
         thead.innerHTML = `
             <tr class="bg-slate-50 text-slate-600 uppercase text-[11px] font-bold tracking-wider">
                 <th class="px-4 py-4 border-b border-slate-200">${t('table.action')}</th>
-                <th class="px-4 py-4 border-b border-slate-200">${cols.id.replace(/([A-Z])/g, ' $1').trim()}</th>
+                <th class="px-4 py-4 border-b border-slate-200 cursor-pointer select-none hover:text-blue-700 transition-colors" onclick="handleMgmtSort('${cols.id}')">
+                    <span class="flex items-center gap-1">${cols.id.replace(/([A-Z])/g, ' $1').trim()} <span class="material-symbols-outlined text-[14px]">${sortIcon}</span></span>
+                </th>
                 ${displayCols.map(col => `<th class="px-4 py-4 border-b border-slate-200">${col.replace(/([A-Z])/g, ' $1').trim()}</th>`).join('')}
             </tr>
         `;
