@@ -148,35 +148,33 @@ try {
                     exit;
                 }
 
-                // 检查是否有关联的船队
-                $stmtCheck = $db->prepare("SELECT COUNT(*) as count FROM tblFleetDetail WHERE BoatID = ? AND is_del = 0");
-                $stmtCheck->execute([$boatId]);
-                $fleetCount = $stmtCheck->fetch(PDO::FETCH_ASSOC)['count'];
+                try {
+                    // 开始事务
+                    $db->beginTransaction();
 
-                if ($fleetCount > 0) {
-                    // 只删除船只，保留关联记录（软删除）
-                    $stmt = $db->prepare("UPDATE tblBoat SET is_del = 1 WHERE BoatID = ?");
-                    $result = $stmt->execute([$boatId]);
-
-                    // 同时软删除关联记录
-                    $stmtDetail = $db->prepare("UPDATE tblFleetDetail SET is_del = 1 WHERE BoatID = ?");
-                    $stmtDetail->execute([$boatId]);
-
-                    if ($result) {
-                        echo json_encode(['success' => true, 'message' => 'Boat and fleet associations deleted successfully']);
-                    } else {
-                        echo json_encode(['success' => false, 'error' => 'Failed to delete boat']);
-                    }
-                } else {
                     // 软删除船只
                     $stmt = $db->prepare("UPDATE tblBoat SET is_del = 1 WHERE BoatID = ?");
                     $result = $stmt->execute([$boatId]);
 
-                    if ($result) {
-                        echo json_encode(['success' => true, 'message' => 'Boat deleted successfully']);
-                    } else {
-                        echo json_encode(['success' => false, 'error' => 'Failed to delete boat']);
+                    if (!$result) {
+                        throw new Exception('Failed to delete boat');
                     }
+
+                    // 软删除关联的船队记录
+                    $stmtDetail = $db->prepare("UPDATE tblFleetDetail SET is_del = 1 WHERE BoatID = ?");
+                    $stmtDetail->execute([$boatId]);
+
+                    // 提交事务
+                    $db->commit();
+
+                    echo json_encode(['success' => true, 'message' => 'Boat and fleet associations deleted successfully']);
+                } catch (Exception $e) {
+                    // 回滚事务
+                    if ($db->inTransaction()) {
+                        $db->rollBack();
+                    }
+                    error_log("Boat Delete Error: " . $e->getMessage());
+                    echo json_encode(['success' => false, 'error' => 'Failed to delete boat: ' . $e->getMessage()]);
                 }
             }
             break;

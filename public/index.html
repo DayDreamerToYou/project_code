@@ -3569,23 +3569,23 @@ async function netPrintRecord(type, id) {
             }
         }
 
-        // Load fleet list for suppliers FleetID select
-        if (table === 'suppliers' && !window.mgmtFleets) {
+        // Load fleet list for suppliers FleetID select and boat-management FleetIDs multiSelect
+        if (table === 'suppliers' || table === 'boat-management') {
             try {
                 const res = await fetch('../api/fleet.php?action=list');
-                const data = await res.json();
-                window.mgmtFleets = data.data || [];
+                const result = await res.json();
+                window.mgmtFleets = result.data || [];
             } catch (e) {
                 window.mgmtFleets = [];
             }
         }
 
         // Load available boats for fleet BoatIDs multiSelect
-        if (table === 'fleet' && !window.mgmtAvailableBoats) {
+        if (table === 'fleet') {
             try {
                 const res = await fetch('../api/boat-management.php?action=available-boats');
-                const data = await res.json();
-                window.mgmtAvailableBoats = data.data || [];
+                const result = await res.json();
+                window.mgmtAvailableBoats = result.data || [];
             } catch (e) {
                 window.mgmtAvailableBoats = [];
             }
@@ -3602,17 +3602,6 @@ async function netPrintRecord(type, id) {
             }
         } else if (table === 'fleet') {
             window.mgmtSelectedBoats = [];
-        }
-
-        // Load fleet list for boat-management FleetIDs multiSelect
-        if (table === 'boat-management' && !window.mgmtFleets) {
-            try {
-                const res = await fetch('../api/fleet.php?action=list');
-                const data = await res.json();
-                window.mgmtFleets = data.data || [];
-            } catch (e) {
-                window.mgmtFleets = [];
-            }
         }
 
         // For Boat editing, load associated fleets
@@ -3666,7 +3655,8 @@ async function netPrintRecord(type, id) {
             const isPrimaryKey = (
                 field.name === 'SupplierID' || field.name === 'BoatID' || field.name === 'PortID' ||
                 field.name === 'StockID' || field.name === 'PriceID' || field.name === 'BinID' ||
-                field.name === 'id' || field.name === 'UnitID'
+                field.name === 'id' || field.name === 'UnitID' ||
+                (table === 'fleet' && field.name === 'FleetID')
             );
             // FleetID is a foreign key for suppliers (not a primary key), so don't skip it
             if (!isEdit && isPrimaryKey && !(table === 'suppliers' && field.name === 'FleetID')) {
@@ -3889,7 +3879,6 @@ async function netPrintRecord(type, id) {
         let endpoint;
         switch(table) {
             case 'suppliers':
-            case 'boat':
             case 'port':
             case 'stock':
             case 'bin':
@@ -3897,6 +3886,9 @@ async function netPrintRecord(type, id) {
                 break;
             case 'fleet':
                 endpoint = API_BASE + '/fleet.php?action=delete';
+                break;
+            case 'boat-management':
+                endpoint = API_BASE + '/boat-management.php?action=delete';
                 break;
             case 'price':
                 endpoint = API_BASE + '/supplier-stock-price.php?id=' + id;
