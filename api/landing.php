@@ -590,6 +590,9 @@ function handleDelete($conn) {
         $conn->commit();
 
         // 5. 重置 AUTO_INCREMENT 为最大 ID + 1
+        // 注意：已暂时禁用此功能，避免 ID 重用导致的数据一致性问题
+        // 如需启用，请与需求方确认后取消注释
+        /*
         $maxIdSql = "SELECT COALESCE(MAX(LandingID), 0) as max_id FROM tblLanding";
         $maxIdStmt = $conn->prepare($maxIdSql);
         $maxIdStmt->execute();
@@ -598,6 +601,7 @@ function handleDelete($conn) {
 
         $alterSql = "ALTER TABLE tblLanding AUTO_INCREMENT = " . $newAutoIncrement;
         $conn->exec($alterSql);
+        */
 
         echo json_encode([
             'success' => true,
