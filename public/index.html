@@ -688,6 +688,14 @@
             'btn.confirm': 'Confirm',
             'btn.refresh': 'Refresh',
             'btn.search': 'Search',
+
+            // Delete Confirm Messages
+            'delete.landing.title': '⚠️ Delete Landing Record',
+            'delete.landing.message': 'This will permanently delete:\n• The landing record (ID: {id})\n• ALL associated purchase records\n• ALL associated sales records\n\nThis action cannot be undone. Are you sure?',
+            'delete.purchase.title': '⚠️ Delete Purchase Record',
+            'delete.purchase.message': 'This will permanently delete:\n• The purchase record (ID: {id})\n• ALL associated sales records\n\nThis action cannot be undone. Are you sure?',
+            'delete.sales.title': '⚠️ Delete Sales Record',
+            'delete.sales.message': 'This will permanently delete:\n• The sales record (ID: {id})\n\nThis action cannot be undone. Are you sure?',
         },
         zh: {
             // Navigation
@@ -944,6 +952,14 @@
             'btn.confirm': '确认',
             'btn.refresh': '刷新',
             'btn.search': '搜索',
+
+            // Delete Confirm Messages
+            'delete.landing.title': '⚠️ 删除到货记录',
+            'delete.landing.message': '此操作将永久删除：\n• 到货记录 (ID: {id})\n• 所有关联的采购记录\n• 所有关联的销售记录\n\n此操作无法撤销，确定要删除吗？',
+            'delete.purchase.title': '⚠️ 删除采购记录',
+            'delete.purchase.message': '此操作将永久删除：\n• 采购记录 (ID: {id})\n• 所有关联的销售记录\n\n此操作无法撤销，确定要删除吗？',
+            'delete.sales.title': '⚠️ 删除销售记录',
+            'delete.sales.message': '此操作将永久删除：\n• 销售记录 (ID: {id})\n\n此操作无法撤销，确定要删除吗？',
         }
     };
 
@@ -3294,13 +3310,7 @@ async function netPrintRecord(type, id) {
 
     // Delete row
     async function deleteRow(id) {
-        const confirmMsg = '⚠️ Delete Landing Record\n\n' +
-            'This will permanently delete:\n' +
-            '• The landing record (ID: ' + id + ')\n' +
-            '• ALL associated purchase records\n' +
-            '• ALL associated sales records\n\n' +
-            'This action cannot be undone. Are you sure?';
-        
+        const confirmMsg = t('delete.landing.message').replace('{id}', id);
         if (!confirm(confirmMsg)) return;
 
         try {
@@ -5006,12 +5016,7 @@ async function netPrintRecord(type, id) {
     }
 
     function deletePurchaseRow(id) {
-        const confirmMsg = '⚠️ Delete Purchase Record\n\n' +
-            'This will permanently delete:\n' +
-            '• The purchase record (ID: ' + id + ')\n' +
-            '• ALL associated sales records\n\n' +
-            'This action cannot be undone. Are you sure?';
-        
+        const confirmMsg = t('delete.purchase.message').replace('{id}', id);
         if (!confirm(confirmMsg)) return;
         fetch(API_BASE + '/purchase.php', {
             method: 'DELETE',
@@ -5511,11 +5516,7 @@ async function netPrintRecord(type, id) {
     }
 
     function deleteSalesRow(id) {
-        const confirmMsg = '⚠️ Delete Sales Record\n\n' +
-            'This will permanently delete:\n' +
-            '• The sales record (ID: ' + id + ')\n\n' +
-            'This action cannot be undone. Are you sure?';
-        
+        const confirmMsg = t('delete.sales.message').replace('{id}', id);
         if (!confirm(confirmMsg)) return;
         fetch(API_BASE + '/sales.php', {
             method: 'DELETE',
