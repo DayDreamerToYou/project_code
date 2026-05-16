@@ -3297,8 +3297,10 @@ async function netPrintRecord(type, id) {
         if (!confirm('Are you sure you want to delete this record?')) return;
 
         try {
-            const response = await fetch(API_BASE + '/landing.php?id=' + id, {
-                method: 'DELETE'
+            const response = await fetch(API_BASE + '/landing.php', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ LandingID: id })
             });
 
             const result = await response.json();
@@ -4998,7 +5000,11 @@ async function netPrintRecord(type, id) {
 
     function deletePurchaseRow(id) {
         if (!confirm('Are you sure you want to delete this record?')) return;
-        fetch(API_BASE + '/purchase.php?id=' + id, { method: 'DELETE' })
+        fetch(API_BASE + '/purchase.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ PurchaseID: id })
+        })
             .then(res => res.json())
             .then(result => {
                 showToast(result.success ? t('toast.recordDeleted') : t('toast.deleteFailed'), result.success ? 'success' : 'error');
@@ -5493,7 +5499,11 @@ async function netPrintRecord(type, id) {
 
     function deleteSalesRow(id) {
         if (!confirm('Are you sure you want to delete this record?')) return;
-        fetch(API_BASE + '/sales.php?id=' + id, { method: 'DELETE' })
+        fetch(API_BASE + '/sales.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ SalesID: id })
+        })
             .then(res => res.json())
             .then(result => {
                 showToast(result.success ? t('toast.recordDeleted') : t('toast.deleteFailed'), result.success ? 'success' : 'error');
