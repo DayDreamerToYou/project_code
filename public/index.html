@@ -2324,6 +2324,8 @@
     async function savePurchaseRecord() {
         const purchaseDate = document.getElementById('edit-purchase-date')?.value;
         const supplierId = document.getElementById('edit-supplier')?.value;
+        const portId = document.getElementById('edit-port')?.value;
+        const boatId = document.getElementById('edit-boat')?.value;
 
         if (!purchaseDate || !supplierId) {
             showToast('Please fill in all required fields', 'error');
@@ -2334,6 +2336,8 @@
             PurchaseID: currentRecordData.PurchaseID,
             PurchaseDate: purchaseDate,
             SupplierID: supplierId,
+            PortID: portId || null,
+            BoatID: boatId || null,
             details: []
         };
 
@@ -4436,12 +4440,18 @@ async function netPrintRecord(type, id) {
         const supplierOptions = '<option value="">Select Supplier</option>' +
             landingOptions.suppliers.map(s => `<option value="${s.SupplierID}" ${data.SupplierID == s.SupplierID ? 'selected' : ''}>${s.SupplierName}</option>`).join('');
 
+        const portOptions = '<option value="">Select Port</option>' +
+            landingOptions.ports.map(p => `<option value="${p.PortID}" ${data.PortID == p.PortID ? 'selected' : ''}>${p.Port}</option>`).join('');
+
+        const boatOptions = '<option value="">Select Boat</option>' +
+            landingOptions.boats.map(b => `<option value="${b.BoatID}" ${data.BoatID == b.BoatID ? 'selected' : ''}>${b.BoatName}</option>`).join('');
+
         const subtotal = data.Subtotal || 0;
         const gst = data.GST || 0;
         const total = data.Total || 0;
 
         modalBody.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-7 gap-4 mb-8">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Purchase Date</label>
                     <input id="edit-purchase-date" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" type="date" value="${data.PurchaseDate || ''}"/>
@@ -4449,6 +4459,14 @@ async function netPrintRecord(type, id) {
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Supplier</label>
                     <select id="edit-supplier" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">${supplierOptions}</select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Port</label>
+                    <select id="edit-port" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">${portOptions}</select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Boat</label>
+                    <select id="edit-boat" class="w-full border-slate-200 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white">${boatOptions}</select>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Subtotal</label>

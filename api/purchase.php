@@ -168,16 +168,17 @@ function handleGet($conn) {
     $orderByOrder = strtolower($sortOrder) === 'asc' ? 'ASC' : 'DESC';
 
     // 查询数据
-    $sql = "SELECT p.PurchaseID, p.PurchaseDate, p.SupplierID, p.Subtotal, p.GST, p.Total, p.EmailSent,
+    $sql = "SELECT p.PurchaseID, p.PurchaseDate, p.SupplierID, p.PortID, p.BoatID, p.Subtotal, p.GST, p.Total, p.EmailSent,
                    s.SupplierName, s.Email, s.GST as SupplierGST,
                    b.BoatName, b.BoatNo,
+                   pt.Port,
                    (SELECT COUNT(*) FROM tblPurchaseDetail pd WHERE pd.PurchaseID = p.PurchaseID AND pd.is_del = 0) as detail_count,
                    (SELECT SUM(GreenKG) FROM tblPurchaseDetail pd WHERE pd.PurchaseID = p.PurchaseID AND pd.is_del = 0) as total_green_kg,
                    (SELECT SUM(LandedKG) FROM tblPurchaseDetail pd WHERE pd.PurchaseID = p.PurchaseID AND pd.is_del = 0) as total_landed_kg
             FROM tblPurchase p
             LEFT JOIN tblSuppliers s ON p.SupplierID = s.SupplierID
-            LEFT JOIN tblLanding l ON p.LandingID = l.LandingID
-            LEFT JOIN tblBoat b ON l.BoatID = b.BoatID
+            LEFT JOIN tblBoat b ON p.BoatID = b.BoatID
+            LEFT JOIN tblPort pt ON p.PortID = pt.PortID
             WHERE $where
             ORDER BY $orderByField $orderByOrder
             LIMIT ? OFFSET ?";
@@ -251,13 +252,15 @@ function handlePost($conn) {
         $conn->beginTransaction();
 
         // 插入主表
-        $sql = "INSERT INTO tblPurchase (PurchaseDate, SupplierID, Subtotal, GST, Total)
-                VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO tblPurchase (PurchaseDate, SupplierID, PortID, BoatID, Subtotal, GST, Total)
+                VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $conn->prepare($sql);
         $stmt->execute([
             $input['PurchaseDate'],
             $input['SupplierID'],
+            $input['PortID'] ?? null,
+            $input['BoatID'] ?? null,
             $input['Subtotal'] ?? 0,
             $input['GST'] ?? 0,
             $input['Total'] ?? 0
@@ -371,13 +374,15 @@ function handlePut($conn) {
         $conn->beginTransaction();
 
         // 更新主表
-        $sql = "UPDATE tblPurchase SET PurchaseDate = ?, SupplierID = ?, Subtotal = ?, GST = ?, Total = ?
+        $sql = "UPDATE tblPurchase SET PurchaseDate = ?, SupplierID = ?, PortID = ?, BoatID = ?, Subtotal = ?, GST = ?, Total = ?
                 WHERE PurchaseID = ?";
 
         $stmt = $conn->prepare($sql);
         $stmt->execute([
             $input['PurchaseDate'],
             $input['SupplierID'],
+            $input['PortID'] ?? null,
+            $input['BoatID'] ?? null,
             $input['Subtotal'] ?? 0,
             $input['GST'] ?? 0,
             $input['Total'] ?? 0,
@@ -436,7 +441,7 @@ function handlePut($conn) {
 }
 
 /**
- * 处理DELETE请求 - 删除记录（物理删除，级联删除关联的销售记录）
+ * 处理DELETE请求 - 删除记录（软删除，级联删除关联的销售记录）
  */
 function handleDelete($conn) {
     // 验证登录状态
@@ -466,33 +471,33 @@ function handleDelete($conn) {
         $purchaseId = $input['PurchaseID'];
 
         // 1. 查找关联的销售记录
-        $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID = ?";
+        $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID = ? AND is_del = 0";
         $salesStmt = $conn->prepare($salesQuery);
         $salesStmt->execute([$purchaseId]);
         $salesIds = $salesStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // 2. 级联删除销售记录及其明细
+        // 2. 级联软删除销售记录及其明细
         if (!empty($salesIds)) {
             $salesIdList = implode(',', array_fill(0, count($salesIds), '?'));
 
-            // 物理删除销售明细
-            $salesDetailSql = "DELETE FROM tblSalesDetail WHERE SalesID IN ($salesIdList)";
+            // 软删除销售明细
+            $salesDetailSql = "UPDATE tblSalesDetail SET is_del = 1 WHERE SalesID IN ($salesIdList)";
             $salesDetailStmt = $conn->prepare($salesDetailSql);
             $salesDetailStmt->execute($salesIds);
 
-            // 物理删除销售记录
-            $salesSql = "DELETE FROM tblSales WHERE SalesID IN ($salesIdList)";
+            // 软删除销售记录
+            $salesSql = "UPDATE tblSales SET is_del = 1 WHERE SalesID IN ($salesIdList)";
             $salesStmt = $conn->prepare($salesSql);
             $salesStmt->execute($salesIds);
         }
 
-        // 3. 物理删除采购明细
-        $purchaseDetailSql = "DELETE FROM tblPurchaseDetail WHERE PurchaseID = ?";
+        // 3. 软删除采购明细
+        $purchaseDetailSql = "UPDATE tblPurchaseDetail SET is_del = 1 WHERE PurchaseID = ?";
         $purchaseDetailStmt = $conn->prepare($purchaseDetailSql);
         $purchaseDetailStmt->execute([$purchaseId]);
 
-        // 4. 物理删除采购主表
-        $purchaseSql = "DELETE FROM tblPurchase WHERE PurchaseID = ?";
+        // 4. 软删除采购主表
+        $purchaseSql = "UPDATE tblPurchase SET is_del = 1 WHERE PurchaseID = ?";
         $purchaseStmt = $conn->prepare($purchaseSql);
         $purchaseStmt->execute([$purchaseId]);
 

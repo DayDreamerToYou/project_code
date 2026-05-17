@@ -201,13 +201,15 @@ function generatePurchaseFromLanding($conn, $landingId) {
     }
 
     // ========== Step 7: Insert purchase order main table ==========
-    $insertSql = "INSERT INTO tblPurchase (PurchaseID, PurchaseDate, SupplierID, Subtotal, GST, Total, LandingID)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)";
+    $insertSql = "INSERT INTO tblPurchase (PurchaseID, PurchaseDate, SupplierID, PortID, BoatID, Subtotal, GST, Total, LandingID)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $insertStmt = $conn->prepare($insertSql);
     $insertStmt->execute([
         $purchaseId,
         $landingData['LandingDate'],
         $landingData['SupplierID'],
+        $landingData['PortID'],
+        $landingData['BoatID'],
         round($subtotal, 2),
         round($gst, 2),
         round($totalAmount, 2),
@@ -301,6 +303,8 @@ function restorePurchaseOrder($conn, $purchaseId, $landingData, $subtotal, $gst,
                         is_del = 0,
                         PurchaseDate = ?,
                         SupplierID = ?,
+                        PortID = ?,
+                        BoatID = ?,
                         Subtotal = ?,
                         GST = ?,
                         Total = ?,
@@ -310,6 +314,8 @@ function restorePurchaseOrder($conn, $purchaseId, $landingData, $subtotal, $gst,
     $updateMainStmt->execute([
         $landingData['LandingDate'],
         $landingData['SupplierID'],
+        $landingData['PortID'],
+        $landingData['BoatID'],
         round($subtotal, 2),
         round($gst, 2),
         round($totalAmount, 2),

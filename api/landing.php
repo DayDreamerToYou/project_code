@@ -507,7 +507,7 @@ function handlePut($conn) {
 }
 
 /**
- * 处理DELETE请求 - 删除记录（物理删除，级联删除关联的采购和销售记录）
+ * 处理DELETE请求 - 删除记录（软删除，级联删除关联的采购和销售记录）
  */
 function handleDelete($conn) {
     // 验证登录状态
@@ -536,23 +536,23 @@ function handleDelete($conn) {
 
         $landingId = $input['LandingID'];
 
-        // 1. 物理删除到货明细
-        $landingDetailSql = "DELETE FROM tblLandingDetail WHERE LandingID = ?";
+        // 1. 软删除到货明细
+        $landingDetailSql = "UPDATE tblLandingDetail SET is_del = 1 WHERE LandingID = ?";
         $landingDetailStmt = $conn->prepare($landingDetailSql);
         $landingDetailStmt->execute([$landingId]);
 
         // 2. 查找关联的采购记录
-        $purchaseQuery = "SELECT PurchaseID FROM tblPurchase WHERE LandingID = ?";
+        $purchaseQuery = "SELECT PurchaseID FROM tblPurchase WHERE LandingID = ? AND is_del = 0";
         $purchaseStmt = $conn->prepare($purchaseQuery);
         $purchaseStmt->execute([$landingId]);
         $purchaseIds = $purchaseStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // 3. 级联删除采购记录及其明细
+        // 3. 级联软删除采购记录及其明细
         if (!empty($purchaseIds)) {
             $purchaseIdList = implode(',', array_fill(0, count($purchaseIds), '?'));
 
-            // 查找并删除关联的销售记录及其明细
-            $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID IN ($purchaseIdList)";
+            // 查找并软删除关联的销售记录及其明细
+            $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID IN ($purchaseIdList) AND is_del = 0";
             $salesStmt = $conn->prepare($salesQuery);
             $salesStmt->execute($purchaseIds);
             $salesIds = $salesStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -560,48 +560,34 @@ function handleDelete($conn) {
             if (!empty($salesIds)) {
                 $salesIdList = implode(',', array_fill(0, count($salesIds), '?'));
 
-                // 物理删除销售明细
-                $salesDetailSql = "DELETE FROM tblSalesDetail WHERE SalesID IN ($salesIdList)";
+                // 软删除销售明细
+                $salesDetailSql = "UPDATE tblSalesDetail SET is_del = 1 WHERE SalesID IN ($salesIdList)";
                 $salesDetailStmt = $conn->prepare($salesDetailSql);
                 $salesDetailStmt->execute($salesIds);
 
-                // 物理删除销售记录
-                $salesSql = "DELETE FROM tblSales WHERE SalesID IN ($salesIdList)";
+                // 软删除销售记录
+                $salesSql = "UPDATE tblSales SET is_del = 1 WHERE SalesID IN ($salesIdList)";
                 $salesStmt = $conn->prepare($salesSql);
                 $salesStmt->execute($salesIds);
             }
 
-            // 物理删除采购明细
-            $purchaseDetailSql = "DELETE FROM tblPurchaseDetail WHERE PurchaseID IN ($purchaseIdList)";
+            // 软删除采购明细
+            $purchaseDetailSql = "UPDATE tblPurchaseDetail SET is_del = 1 WHERE PurchaseID IN ($purchaseIdList)";
             $purchaseDetailStmt = $conn->prepare($purchaseDetailSql);
             $purchaseDetailStmt->execute($purchaseIds);
 
-            // 物理删除采购记录
-            $purchaseSql = "DELETE FROM tblPurchase WHERE PurchaseID IN ($purchaseIdList)";
+            // 软删除采购记录
+            $purchaseSql = "UPDATE tblPurchase SET is_del = 1 WHERE PurchaseID IN ($purchaseIdList)";
             $purchaseStmt = $conn->prepare($purchaseSql);
             $purchaseStmt->execute($purchaseIds);
         }
 
-        // 4. 物理删除到货主表
-        $landingSql = "DELETE FROM tblLanding WHERE LandingID = ?";
+        // 4. 软删除到货主表
+        $landingSql = "UPDATE tblLanding SET is_del = 1 WHERE LandingID = ?";
         $landingStmt = $conn->prepare($landingSql);
         $landingStmt->execute([$landingId]);
 
         $conn->commit();
-
-        // 5. 重置 AUTO_INCREMENT 为最大 ID + 1
-        // 注意：已暂时禁用此功能，避免 ID 重用导致的数据一致性问题
-        // 如需启用，请与需求方确认后取消注释
-        /*
-        $maxIdSql = "SELECT COALESCE(MAX(LandingID), 0) as max_id FROM tblLanding";
-        $maxIdStmt = $conn->prepare($maxIdSql);
-        $maxIdStmt->execute();
-        $maxId = $maxIdStmt->fetch(PDO::FETCH_ASSOC)['max_id'];
-        $newAutoIncrement = $maxId + 1;
-
-        $alterSql = "ALTER TABLE tblLanding AUTO_INCREMENT = " . $newAutoIncrement;
-        $conn->exec($alterSql);
-        */
 
         echo json_encode([
             'success' => true,
