@@ -84,14 +84,10 @@ Fishery Data Management System (渔业数据管理系统) - A lightweight table 
 │   ├── index.html               # Main application entry (Tailwind CSS 新版) ⭐
 │   ├── index-layui.html         # Main application entry (Layui 旧版)
 │   ├── data-management.html     # 基础数据管理 (Layui 旧版)
-│   ├── monthly-report.html      # Monthly report page
-│   ├── monthly-statistics.html  # Monthly statistics page (图表)
-│   ├── purchase-landing.html    # Purchase-landing bridge page
 │   ├── print-landing.html       # Landing print page
 │   ├── print-bill.html          # Bill print page
 │   ├── css/
-│   │   ├── style.css            # Main stylesheet
-│   │   └── layui-custom.css     # Layui custom styles
+│   │   └── style.css            # Main stylesheet
 │   └── js/
 │       ├── app.js               # Layui 版核心逻辑
 │       ├── app-fishery.js       # Tailwind 版渔业模块逻辑
@@ -100,10 +96,6 @@ Fishery Data Management System (渔业数据管理系统) - A lightweight table 
 │       └── i18n.js              # 国际化支持
 ├── docs/
 │   └── ARCHITECTURE.md          # Architecture documentation
-├── deploy-package/              # 部署脚本和配置
-│   ├── bin/deploy.sh            # 部署脚本
-│   ├── scripts/                 # 备份、初始化、更新脚本
-│   └── nginx/                   # Nginx 配置
 ├── MIGRATION_STATUS.md          # Migration progress report (Layui → Tailwind)
 └── README.md                    # Deployment documentation (Chinese)
 ```
@@ -375,7 +367,6 @@ window.addEventListener('DOMContentLoaded', () => {
 ### Environment Variables (.env)
 - **Location:** `/www/wwwroot/table-editor/.env`
 - **Purpose:** Store sensitive configuration (NOT committed to git)
-- **Template:** `deploy-package/config/.env.template`
 
 **Environment Variables:**
 | Variable | Description |
