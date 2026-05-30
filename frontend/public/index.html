@@ -5642,38 +5642,32 @@ async function netPrintRecord(type, id) {
     let isLoggedIn = false;
 
     // Check login status on page load
+    // 每次都验证后端 session，不再只依赖 localStorage
     async function checkLoginStatus() {
-        var savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            try {
-                var userData = JSON.parse(savedUser);
-                if (userData && userData.username) {
-                    isLoggedIn = true;
-                    if (document.getElementById('user-name')) {
-                        document.getElementById('user-name').textContent = userData.username;
-                    }
-                    showMainContent();
-                    return;
-                }
-            } catch (e) {
-                localStorage.removeItem('user');
-            }
-        }
-
         try {
             const response = await fetch(API_BASE + '/user', {
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' }
             });
             const result = await response.json();
-            if (result.success && result.logged_in !== false) {
+            
+            if (result.success && result.data) {
+                // Session 有效，更新 localStorage 和用户名显示
                 isLoggedIn = true;
+                localStorage.setItem('user', JSON.stringify(result.data));
+                if (document.getElementById('user-name')) {
+                    document.getElementById('user-name').textContent = result.data.username;
+                }
                 showMainContent();
             } else {
+                // Session 失效，清除 localStorage
+                localStorage.removeItem('user');
                 isLoggedIn = false;
                 showLoginModal();
             }
         } catch (error) {
+            // 网络错误或其他异常，也清除 localStorage
+            localStorage.removeItem('user');
             isLoggedIn = false;
             showLoginModal();
         }

@@ -53,4 +53,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 
 EXPOSE 8001
 
+WORKDIR /var/www/html
+
 CMD php artisan serve --host=0.0.0.0 --port=8001
