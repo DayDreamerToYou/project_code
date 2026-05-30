@@ -242,23 +242,47 @@ class LandingService
         });
     }
 
+    /**
+     * 重置 AUTO_INCREMENT
+     */
+    private function resetAutoIncrement(string $table, string $idField): void
+    {
+        $nextId = DB::table($table)->max($idField) + 1;
+        DB::statement("ALTER TABLE {$table} AUTO_INCREMENT = {$nextId}");
+    }
+
     public function delete(int $id): void
     {
         DB::transaction(function () use ($id) {
-            LandingDetail::where('LandingID', $id)->update(['is_del' => 1]);
-            Landing::where('LandingID', $id)->update(['is_del' => 1]);
-
-            $purchaseIds = Purchase::where('LandingID', $id)->notDeleted()->pluck('PurchaseID');
+            // 1. 物理删除到货明细
+            LandingDetail::where('LandingID', $id)->delete();
+            
+            // 2. 查找关联的采购记录
+            $purchaseIds = Purchase::where('LandingID', $id)->pluck('PurchaseID');
+            
             if ($purchaseIds->isNotEmpty()) {
-                $salesIds = \App\Models\Sales::whereIn('PurchaseID', $purchaseIds)->notDeleted()->pluck('SalesID');
+                // 3. 查找关联的销售记录
+                $salesIds = \App\Models\Sales::whereIn('PurchaseID', $purchaseIds)->pluck('SalesID');
+                
                 if ($salesIds->isNotEmpty()) {
-                    \App\Models\SalesDetail::whereIn('SalesID', $salesIds)->update(['is_del' => 1]);
-                    \App\Models\Sales::whereIn('SalesID', $salesIds)->update(['is_del' => 1]);
+                    // 4. 物理删除销售明细
+                    \App\Models\SalesDetail::whereIn('SalesID', $salesIds)->delete();
+                    // 5. 物理删除销售记录
+                    \App\Models\Sales::whereIn('SalesID', $salesIds)->delete();
                 }
-                PurchaseDetail::whereIn('PurchaseID', $purchaseIds)->update(['is_del' => 1]);
-                Purchase::whereIn('PurchaseID', $purchaseIds)->update(['is_del' => 1]);
+                
+                // 6. 物理删除采购明细
+                PurchaseDetail::whereIn('PurchaseID', $purchaseIds)->delete();
+                // 7. 物理删除采购记录
+                Purchase::whereIn('PurchaseID', $purchaseIds)->delete();
             }
+            
+            // 8. 物理删除到货主表
+            Landing::where('LandingID', $id)->delete();
         });
+        
+        // 9. 重置 AUTO_INCREMENT（在事务外执行）
+        $this->resetAutoIncrement('tblLanding', 'LandingID');
     }
 
     public function getDetails(array $landingIds): array

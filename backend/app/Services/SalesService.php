@@ -182,8 +182,10 @@ class SalesService
     public function delete(int $id): void
     {
         DB::transaction(function () use ($id) {
-            SalesDetail::where('SalesID', $id)->update(['is_del' => 1]);
-            Sales::where('SalesID', $id)->update(['is_del' => 1]);
+            // 1. 物理删除销售明细
+            SalesDetail::where('SalesID', $id)->delete();
+            // 2. 物理删除销售主表
+            Sales::where('SalesID', $id)->delete();
         });
     }
 

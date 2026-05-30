@@ -1841,21 +1841,24 @@
     }
 
     function refreshTable(resetPage = false) {
-        if (currentModule === 'landing') {
+        const activeTab = document.querySelector('.tab-btn.border-blue-700');
+        const tab = activeTab ? activeTab.dataset.tab : 'landing';
+
+        if (tab === 'landing') {
             if (resetPage) {
                 recordsState.landing.page = 1;
                 recordsState.landing.sortField = 'LandingID';
                 recordsState.landing.sortOrder = 'desc';
             }
             loadRecordsData();
-        } else if (currentModule === 'purchase') {
+        } else if (tab === 'purchase') {
             if (resetPage) {
                 recordsState.purchase.page = 1;
                 recordsState.purchase.sortField = 'PurchaseID';
                 recordsState.purchase.sortOrder = 'desc';
             }
             loadPurchaseData();
-        } else if (currentModule === 'sales') {
+        } else if (tab === 'sales') {
             if (resetPage) {
                 recordsState.sales.page = 1;
                 recordsState.sales.sortField = 'SalesID';

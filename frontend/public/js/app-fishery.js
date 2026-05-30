@@ -114,7 +114,7 @@ function bindModuleEvents(module) {
  * 检查登录状态
  */
 function checkLoginStatus() {
-    fetch('../api/landing.php', { method: 'GET' })
+    fetch('/api/landings', { method: 'GET' })
     .then(response => response.json())
     .then(data => {
         if (data.success && data.logged_in !== false) {
@@ -144,7 +144,7 @@ function handleLogin(e) {
     hideError('login-error');
     showLoading();
 
-    fetch('../api/login.php', {
+    fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -175,7 +175,7 @@ function handleLogout() {
     if (!confirm('确定要退出登录吗？')) return;
 
     showLoading();
-    fetch('../api/logout.php', { method: 'POST' })
+    fetch('/api/logout', { method: 'POST' })
     .then(response => response.json())
     .then(result => {
         hideLoading();
@@ -264,9 +264,9 @@ function loadModuleData(module) {
     currentModule = module;
 
     const apiMap = {
-        'landing': '../api/landing.php',
-        'purchase': '../api/purchase.php',
-        'sales': '../api/sales.php'
+        'landing': '/api/landings',
+        'purchase': '/api/purchases',
+        'sales': '/api/sales'
     };
 
     const params = new URLSearchParams({
@@ -443,12 +443,12 @@ function openEditModal(module, id) {
     showLoading();
 
     const apiMap = {
-        'landing': '../api/landing.php',
-        'purchase': '../api/purchase.php',
-        'sales': '../api/sales.php'
+        'landing': '/api/landings',
+        'purchase': '/api/purchases',
+        'sales': '/api/sales'
     };
 
-    fetch(`${apiMap[module]}?id=${id}`)
+    fetch(`${apiMap[module]}/${id}`)
     .then(response => response.json())
     .then(result => {
         hideLoading();
@@ -545,14 +545,15 @@ function handleSave(e) {
     showLoading();
 
     const apiMap = {
-        'landing': '../api/landing.php',
-        'purchase': '../api/purchase.php',
-        'sales': '../api/sales.php'
+        'landing': '/api/landings',
+        'purchase': '/api/purchases',
+        'sales': '/api/sales'
     };
 
     const method = data.id ? 'PUT' : 'POST';
+    const url = data.id ? `${apiMap[module]}/${data.id}` : apiMap[module];
 
-    fetch(apiMap[module], {
+    fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -628,15 +629,13 @@ function confirmDelete() {
     showLoading();
 
     const apiMap = {
-        'landing': '../api/landing.php',
-        'purchase': '../api/purchase.php',
-        'sales': '../api/sales.php'
+        'landing': '/api/landings',
+        'purchase': '/api/purchases',
+        'sales': '/api/sales'
     };
 
-    fetch(apiMap[deleteModule], {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: deleteId })
+    fetch(`${apiMap[deleteModule]}/${deleteId}`, {
+        method: 'DELETE'
     })
     .then(response => response.json())
     .then(result => {

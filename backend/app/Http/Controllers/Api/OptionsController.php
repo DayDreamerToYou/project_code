@@ -35,7 +35,7 @@ class OptionsController extends Controller
         $suppliers = Supplier::notDeleted()->orderBy('SupplierName')->get(['SupplierID', 'SupplierName', 'FleetID']);
         $ports = Port::notDeleted()->orderBy('Port')->get(['PortID', 'Port']);
         $stocks = Stock::notDeleted()->orderBy('Stock')->get(['StockID', 'Stock', 'Description', 'State', 'Area', 'Price', 'Conversion']);
-        $bins = Bin::notDeleted()->orderBy('BinName')->get(['BinID', 'BinName']);
+        $bins = Bin::notDeleted()->orderBy('BinName')->get(['BinID', 'BinName', 'B-Weight']);
         $boats = Boat::notDeleted()->orderBy('BoatName')->get(['BoatID', 'BoatNo', 'BoatName']);
         $units = Unit::notDeleted()->orderBy('SortOrder')->orderBy('UnitID')->get(['UnitID', 'UnitCode', 'UnitName', 'UnitSymbol', 'SortOrder']);
 

@@ -226,14 +226,20 @@ class PurchaseService
     public function delete(int $id): void
     {
         DB::transaction(function () use ($id) {
-            $salesIds = Sales::where('PurchaseID', $id)->notDeleted()->pluck('SalesID');
+            // 1. 查找关联的销售记录
+            $salesIds = Sales::where('PurchaseID', $id)->pluck('SalesID');
+            
             if ($salesIds->isNotEmpty()) {
-                SalesDetail::whereIn('SalesID', $salesIds)->update(['is_del' => 1]);
-                Sales::whereIn('SalesID', $salesIds)->update(['is_del' => 1]);
+                // 2. 物理删除销售明细
+                SalesDetail::whereIn('SalesID', $salesIds)->delete();
+                // 3. 物理删除销售记录
+                Sales::whereIn('SalesID', $salesIds)->delete();
             }
 
-            PurchaseDetail::where('PurchaseID', $id)->update(['is_del' => 1]);
-            Purchase::where('PurchaseID', $id)->update(['is_del' => 1]);
+            // 4. 物理删除采购明细
+            PurchaseDetail::where('PurchaseID', $id)->delete();
+            // 5. 物理删除采购主表
+            Purchase::where('PurchaseID', $id)->delete();
         });
     }
 
