@@ -82,10 +82,14 @@ function handleGet($conn) {
     // 如果有ID，返回单条记录及其明细
     if ($purchaseId > 0) {
         // 查询主表
-        $sql = "SELECT p.PurchaseID, p.PurchaseDate, p.SupplierID, p.Subtotal, p.GST, p.Total, p.EmailSent,
-                       s.SupplierName, s.Email
+        $sql = "SELECT p.PurchaseID, p.PurchaseDate, p.SupplierID, p.PortID, p.BoatID, p.Subtotal, p.GST, p.Total, p.EmailSent,
+                       s.SupplierName, s.Email,
+                       b.BoatName, b.BoatNo,
+                       pt.Port
                 FROM tblPurchase p
                 LEFT JOIN tblSuppliers s ON p.SupplierID = s.SupplierID
+                LEFT JOIN tblBoat b ON p.BoatID = b.BoatID
+                LEFT JOIN tblPort pt ON p.PortID = pt.PortID
                 WHERE p.PurchaseID = ? AND p.is_del = 0";
         $stmt = $conn->prepare($sql);
         $stmt->execute([$purchaseId]);

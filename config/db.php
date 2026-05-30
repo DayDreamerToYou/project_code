@@ -83,8 +83,7 @@ class Database {
             $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,      // 启用异常模式
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,             // 默认返回关联数组
-                PDO::ATTR_EMULATE_PREPARES   => false,                        // 禁用模拟预处理
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"          // 设置字符集
+                PDO::ATTR_EMULATE_PREPARES   => false                         // 禁用模拟预处理
             ];
 
             $conn = new PDO($dsn, self::$username, self::$password, $options);

@@ -452,6 +452,8 @@ function updatePurchaseFromLanding($conn, $landingId) {
     $updateMainSql = "UPDATE tblPurchase SET
                         PurchaseDate = ?,
                         SupplierID = ?,
+                        PortID = ?,
+                        BoatID = ?,
                         Subtotal = ?,
                         GST = ?,
                         Total = ?,
@@ -461,6 +463,8 @@ function updatePurchaseFromLanding($conn, $landingId) {
     $updateMainStmt->execute([
         $landingData['LandingDate'],
         $landingData['SupplierID'],
+        $landingData['PortID'],
+        $landingData['BoatID'],
         round($subtotal, 2),
         round($gst, 2),
         round($totalAmount, 2),
