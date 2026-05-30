@@ -1829,12 +1829,30 @@
 
     // Refresh table
     function refreshTable() {
-        if (currentModule === 'landing') {
-            loadRecordsData();
-        } else if (currentModule === 'purchase') {
-            loadPurchaseData();
-        } else if (currentModule === 'sales') {
-            loadSalesData();
+        // Check active tab instead of currentModule
+        const activeTab = document.querySelector('.tab-btn.border-blue-700');
+        if (activeTab) {
+            const tab = activeTab.dataset.tab;
+            switch(tab) {
+                case 'landing':
+                    loadRecordsData();
+                    break;
+                case 'purchase':
+                    loadPurchaseData();
+                    break;
+                case 'sales':
+                    loadSalesData();
+                    break;
+            }
+        } else {
+            // Fallback to currentModule check
+            if (currentModule === 'landing') {
+                loadRecordsData();
+            } else if (currentModule === 'purchase') {
+                loadPurchaseData();
+            } else if (currentModule === 'sales') {
+                loadSalesData();
+            }
         }
     }
 

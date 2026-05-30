@@ -507,7 +507,18 @@ function handlePut($conn) {
 }
 
 /**
- * 处理DELETE请求 - 删除记录（软删除，级联删除关联的采购和销售记录）
+ * 重置 AUTO_INCREMENT
+ */
+function resetAutoIncrement($conn, $table, $idField) {
+    $sql = "SELECT COALESCE(MAX($idField), 0) + 1 as next_id FROM $table";
+    $result = $conn->query($sql)->fetch();
+    $nextId = $result['next_id'];
+    
+    $conn->exec("ALTER TABLE $table AUTO_INCREMENT = $nextId");
+}
+
+/**
+ * 处理DELETE请求 - 物理删除记录（级联删除关联的采购和销售记录）
  */
 function handleDelete($conn) {
     // 验证登录状态
@@ -536,23 +547,23 @@ function handleDelete($conn) {
 
         $landingId = $input['LandingID'];
 
-        // 1. 软删除到货明细
-        $landingDetailSql = "UPDATE tblLandingDetail SET is_del = 1 WHERE LandingID = ?";
+        // 1. 物理删除到货明细
+        $landingDetailSql = "DELETE FROM tblLandingDetail WHERE LandingID = ?";
         $landingDetailStmt = $conn->prepare($landingDetailSql);
         $landingDetailStmt->execute([$landingId]);
 
         // 2. 查找关联的采购记录
-        $purchaseQuery = "SELECT PurchaseID FROM tblPurchase WHERE LandingID = ? AND is_del = 0";
+        $purchaseQuery = "SELECT PurchaseID FROM tblPurchase WHERE LandingID = ?";
         $purchaseStmt = $conn->prepare($purchaseQuery);
         $purchaseStmt->execute([$landingId]);
         $purchaseIds = $purchaseStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // 3. 级联软删除采购记录及其明细
+        // 3. 级联物理删除采购记录及其明细
         if (!empty($purchaseIds)) {
             $purchaseIdList = implode(',', array_fill(0, count($purchaseIds), '?'));
 
-            // 查找并软删除关联的销售记录及其明细
-            $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID IN ($purchaseIdList) AND is_del = 0";
+            // 查找并物理删除关联的销售记录及其明细
+            $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID IN ($purchaseIdList)";
             $salesStmt = $conn->prepare($salesQuery);
             $salesStmt->execute($purchaseIds);
             $salesIds = $salesStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -560,34 +571,37 @@ function handleDelete($conn) {
             if (!empty($salesIds)) {
                 $salesIdList = implode(',', array_fill(0, count($salesIds), '?'));
 
-                // 软删除销售明细
-                $salesDetailSql = "UPDATE tblSalesDetail SET is_del = 1 WHERE SalesID IN ($salesIdList)";
+                // 物理删除销售明细
+                $salesDetailSql = "DELETE FROM tblSalesDetail WHERE SalesID IN ($salesIdList)";
                 $salesDetailStmt = $conn->prepare($salesDetailSql);
                 $salesDetailStmt->execute($salesIds);
 
-                // 软删除销售记录
-                $salesSql = "UPDATE tblSales SET is_del = 1 WHERE SalesID IN ($salesIdList)";
+                // 物理删除销售记录
+                $salesSql = "DELETE FROM tblSales WHERE SalesID IN ($salesIdList)";
                 $salesStmt = $conn->prepare($salesSql);
                 $salesStmt->execute($salesIds);
             }
 
-            // 软删除采购明细
-            $purchaseDetailSql = "UPDATE tblPurchaseDetail SET is_del = 1 WHERE PurchaseID IN ($purchaseIdList)";
+            // 物理删除采购明细
+            $purchaseDetailSql = "DELETE FROM tblPurchaseDetail WHERE PurchaseID IN ($purchaseIdList)";
             $purchaseDetailStmt = $conn->prepare($purchaseDetailSql);
             $purchaseDetailStmt->execute($purchaseIds);
 
-            // 软删除采购记录
-            $purchaseSql = "UPDATE tblPurchase SET is_del = 1 WHERE PurchaseID IN ($purchaseIdList)";
+            // 物理删除采购记录
+            $purchaseSql = "DELETE FROM tblPurchase WHERE PurchaseID IN ($purchaseIdList)";
             $purchaseStmt = $conn->prepare($purchaseSql);
             $purchaseStmt->execute($purchaseIds);
         }
 
-        // 4. 软删除到货主表
-        $landingSql = "UPDATE tblLanding SET is_del = 1 WHERE LandingID = ?";
+        // 4. 物理删除到货主表
+        $landingSql = "DELETE FROM tblLanding WHERE LandingID = ?";
         $landingStmt = $conn->prepare($landingSql);
         $landingStmt->execute([$landingId]);
 
         $conn->commit();
+        
+        // 5. 重置 AUTO_INCREMENT（在事务提交后执行）
+        resetAutoIncrement($conn, 'tblLanding', 'LandingID');
 
         echo json_encode([
             'success' => true,

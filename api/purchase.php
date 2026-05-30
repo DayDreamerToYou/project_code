@@ -445,7 +445,7 @@ function handlePut($conn) {
 }
 
 /**
- * 处理DELETE请求 - 删除记录（软删除，级联删除关联的销售记录）
+ * 处理DELETE请求 - 物理删除记录（级联删除关联的销售记录）
  */
 function handleDelete($conn) {
     // 验证登录状态
@@ -475,33 +475,33 @@ function handleDelete($conn) {
         $purchaseId = $input['PurchaseID'];
 
         // 1. 查找关联的销售记录
-        $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID = ? AND is_del = 0";
+        $salesQuery = "SELECT SalesID FROM tblSales WHERE PurchaseID = ?";
         $salesStmt = $conn->prepare($salesQuery);
         $salesStmt->execute([$purchaseId]);
         $salesIds = $salesStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // 2. 级联软删除销售记录及其明细
+        // 2. 级联物理删除销售记录及其明细
         if (!empty($salesIds)) {
             $salesIdList = implode(',', array_fill(0, count($salesIds), '?'));
 
-            // 软删除销售明细
-            $salesDetailSql = "UPDATE tblSalesDetail SET is_del = 1 WHERE SalesID IN ($salesIdList)";
+            // 物理删除销售明细
+            $salesDetailSql = "DELETE FROM tblSalesDetail WHERE SalesID IN ($salesIdList)";
             $salesDetailStmt = $conn->prepare($salesDetailSql);
             $salesDetailStmt->execute($salesIds);
 
-            // 软删除销售记录
-            $salesSql = "UPDATE tblSales SET is_del = 1 WHERE SalesID IN ($salesIdList)";
+            // 物理删除销售记录
+            $salesSql = "DELETE FROM tblSales WHERE SalesID IN ($salesIdList)";
             $salesStmt = $conn->prepare($salesSql);
             $salesStmt->execute($salesIds);
         }
 
-        // 3. 软删除采购明细
-        $purchaseDetailSql = "UPDATE tblPurchaseDetail SET is_del = 1 WHERE PurchaseID = ?";
+        // 3. 物理删除采购明细
+        $purchaseDetailSql = "DELETE FROM tblPurchaseDetail WHERE PurchaseID = ?";
         $purchaseDetailStmt = $conn->prepare($purchaseDetailSql);
         $purchaseDetailStmt->execute([$purchaseId]);
 
-        // 4. 软删除采购主表
-        $purchaseSql = "UPDATE tblPurchase SET is_del = 1 WHERE PurchaseID = ?";
+        // 4. 物理删除采购主表
+        $purchaseSql = "DELETE FROM tblPurchase WHERE PurchaseID = ?";
         $purchaseStmt = $conn->prepare($purchaseSql);
         $purchaseStmt->execute([$purchaseId]);
 

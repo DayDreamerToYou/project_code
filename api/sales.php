@@ -413,7 +413,7 @@ function handlePut($conn) {
  * 处理DELETE请求 - 删除记录（物理删除）
  */
 /**
- * 处理DELETE请求 - 删除记录（软删除）
+ * 处理DELETE请求 - 物理删除记录
  */
 function handleDelete($conn) {
     // 验证登录状态
@@ -440,13 +440,13 @@ function handleDelete($conn) {
     try {
         $conn->beginTransaction();
 
-        // 软删除明细表
-        $detailSql = "UPDATE tblSalesDetail SET is_del = 1 WHERE SalesID = ?";
+        // 物理删除明细表
+        $detailSql = "DELETE FROM tblSalesDetail WHERE SalesID = ?";
         $detailStmt = $conn->prepare($detailSql);
         $detailStmt->execute([$input['SalesID']]);
 
-        // 软删除主表
-        $sql = "UPDATE tblSales SET is_del = 1 WHERE SalesID = ?";
+        // 物理删除主表
+        $sql = "DELETE FROM tblSales WHERE SalesID = ?";
         $stmt = $conn->prepare($sql);
         $stmt->execute([$input['SalesID']]);
 
